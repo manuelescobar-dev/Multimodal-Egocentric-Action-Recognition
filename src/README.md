@@ -14,7 +14,7 @@ Before starting to implement your own code, make sure to:
 ### 1. Local
 
 You can work on your local machine directly, the code which needs to be run does not require heavy computations. 
-In order to do so a file with all the requirements for the python environment is provided [here](requirements.yaml), it contains even more packages than the strictly needed ones so if you want to install everything step-by-step just be careful to use pytorch 1.12 and torchvision 0.13. 
+In order to do so a file with all the requirements for the python environment is provided [here](requirements.yaml), it contains even more packages than the strictly needed ones so if you want to install everything step-by-step just be careful to use pytorch 1.12 and torchvision 0.13.
 
 ### 2. Google Colab
 
