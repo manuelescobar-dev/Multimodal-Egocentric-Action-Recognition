@@ -1,10 +1,10 @@
 .DS_Store
 **.DS_Store
 *.DS_Store
+saved_features/
 saved_models/
 data/
 *.vscode
-saved_features/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
