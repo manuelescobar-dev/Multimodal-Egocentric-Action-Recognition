@@ -1,6 +1,6 @@
 import glob
 from abc import ABC
-import random
+import numpy as np
 import pandas as pd
 from .epic_record import EpicVideoRecord
 import torch.utils.data as data
@@ -66,46 +66,61 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
             self.model_features = pd.merge(self.model_features, self.list_file, how="inner", on="uid")
 
-    def _get_train_indices(self, record, modality='RGB'):
-        ##################################################################
-        # TODO: implement sampling for training mode                     #
-        # Give the record and the modality, this function should return  #
-        # a list of integers representing the frames to be selected from #
-        # the video clip.                                                #
-        # Remember that the returned array should have size              #
-        #           num_clip x num_frames_per_clip                       #
-        ##################################################################
-        indices = []
-        if self.dense_sampling[modality]:
-            start_idx = random.randint(0, record.num_frames[modality] - self.num_frames_per_clip[modality])
-            indices.extend(range(start_idx, start_idx + self.num_frames_per_clip[modality]))
-        else:
-            start_idx = random.randint(0, record.num_frames[modality] - self.stride * (self.num_frames_per_clip[modality] - 1) - 1)
-            indices.extend(range(start_idx, start_idx + self.stride * self.num_frames_per_clip[modality], self.stride))
-        return indices
+    def _get_train_indices(self, record:EpicVideoRecord, modality="RGB"):
+        if self.dense_sampling:
+            frame_idx = []
+            highest_idx = max(0, record.num_frames[modality] - self.stride * self.num_frames_per_clip[modality]-1)
+            for _ in range(self.num_clips):
+                if highest_idx == 0:
+                    random_offset = 0
+                else:
+                    random_offset = np.random.randint(0, highest_idx)
+                clip_idx = [(random_offset + self.stride * x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                frame_idx.extend(clip_idx)
+        else:  # uniform sampling
+            frame_idx = []
+            highest_idx = max(0,record.num_frames[modality] - self.num_frames_per_clip[modality]-1)
+            for _ in range(self.num_clips):
+                if highest_idx == 0:
+                    random_offset = 0
+                else:
+                    random_offset = np.random.randint(0, highest_idx)
+                clip_idx = [(random_offset + x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                frame_idx.extend(clip_idx)
+        frame_idx = np.asarray(frame_idx)
+        # sort the indexes?
+        # frame_idx = np.sort(frame_idx)
+        return frame_idx
 
-    def _get_val_indices(self, record, modality):
-        ##################################################################
-        # TODO: implement sampling for testing mode                      #
-        # Give the record and the modality, this function should return  #
-        # a list of integers representing the frames to be selected from #
-        # the video clip.                                                #
-        # Remember that the returned array should have size              #
-        #           num_clip x num_frames_per_clip                       #
-        ##################################################################
-        indices = []
-        
-        for _ in range(self.num_clips):
-            if self.dense_sampling[modality]:
-                rand_central = random.randint(self.num_frames_per_clip[modality], record.num_frames[modality] - self.num_frames_per_clip[modality])
-                indices.extend(range(rand_central - self.num_frames_per_clip[modality]//2, rand_central + self.num_frames_per_clip[modality]//2))
-            else:
-                rand_central = random.randint(self.num_frames_per_clip[modality] * self.stride, record.num_frames[modality] - self.stride * (self.num_frames_per_clip[modality] - 1))
-                indices.extend(range(
-                    rand_central - self.num_frames_per_clip[modality] * self.stride/2, rand_central + self.stride * self.num_frames_per_clip[modality]/2, self.stride
-                    ))
-        logger.debug(f"Indices: {len(indices)}")
-        return indices
+    def _get_val_indices(self, record:EpicVideoRecord, modality):
+        if self.dense_sampling:
+            frame_idx = []
+            highest_idx = max(0, record.num_frames[modality] - self.stride * self.num_frames_per_clip[modality]-1)
+            clip_divisions = record.num_frames[modality] // self.num_clips
+            for i in range(self.num_clips):
+                if highest_idx == 0:
+                    start_indx = 0
+                else:
+                    start_indx = clip_divisions * i + clip_divisions
+                # clip_idx = [(random_offset + self.stride * x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                clip_idx = range(start_indx, start_indx + self.stride * self.num_frames_per_clip[modality], self.stride)
+                frame_idx.extend(clip_idx)
+        else:  # uniform sampling
+            frame_idx = []
+            highest_idx = max(0,record.num_frames[modality] - self.num_frames_per_clip[modality]-1)
+            clip_divisions = record.num_frames[modality] // self.num_clips
+            for i in range(self.num_clips):
+                if highest_idx == 0:
+                    start_indx = 0
+                else:
+                    start_indx = clip_divisions * i + clip_divisions
+                # clip_idx = [(random_offset + x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                clip_idx = range(start_indx, start_indx + self.num_frames_per_clip[modality])
+                frame_idx.extend(clip_idx)
+        frame_idx = np.asarray(frame_idx)
+        # sort the indexes?
+        frame_idx = np.sort(frame_idx)
+        return frame_idx
 
     def __getitem__(self, index):
 
