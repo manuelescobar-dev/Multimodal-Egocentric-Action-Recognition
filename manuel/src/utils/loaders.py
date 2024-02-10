@@ -7,10 +7,24 @@ from PIL import Image
 import os
 import os.path
 from utils.logger import logger
+import numpy as np
+
 
 class EpicKitchensDataset(data.Dataset, ABC):
-    def __init__(self, split, modalities, mode, dataset_conf, num_frames_per_clip, num_clips, dense_sampling,
-                 transform=None, load_feat=False, additional_info=False, **kwargs):
+    def __init__(
+        self,
+        split,
+        modalities,
+        mode,
+        dataset_conf,
+        num_frames_per_clip,
+        num_clips,
+        dense_sampling,
+        transform=None,
+        load_feat=False,
+        additional_info=False,
+        **kwargs,
+    ):
         """
         split: str (D1, D2 or D3)
         modalities: list(str, str, ...)
@@ -29,7 +43,9 @@ class EpicKitchensDataset(data.Dataset, ABC):
         additional_info: bool, set to True if you want to receive also the uid and the video name from the get function
             notice, this may be useful to do some proper visualizations!
         """
-        self.modalities = modalities  # considered modalities (ex. [RGB, Flow, Spec, Event])
+        self.modalities = (
+            modalities  # considered modalities (ex. [RGB, Flow, Spec, Event])
+        )
         self.mode = mode  # 'train', 'val' or 'test'
         self.dataset_conf = dataset_conf
         self.num_frames_per_clip = num_frames_per_clip
@@ -40,14 +56,20 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
         if self.mode == "train":
             pickle_name = split + "_train.pkl"
-        elif kwargs.get('save', None) is not None:
+        elif kwargs.get("save", None) is not None:
             pickle_name = split + "_" + kwargs["save"] + ".pkl"
         else:
             pickle_name = split + "_test.pkl"
 
-        self.list_file = pd.read_pickle(os.path.join(self.dataset_conf.annotations_path, pickle_name))
-        logger.info(f"Dataloader for {split}-{self.mode} with {len(self.list_file)} samples generated")
-        self.video_list = [EpicVideoRecord(tup, self.dataset_conf) for tup in self.list_file.iterrows()]
+        self.list_file = pd.read_pickle(
+            os.path.join(self.dataset_conf.annotations_path, pickle_name)
+        )
+        logger.info(
+            f"Dataloader for {split}-{self.mode} with {len(self.list_file)} samples generated"
+        )
+        self.video_list = [
+            EpicVideoRecord(tup, self.dataset_conf) for tup in self.list_file.iterrows()
+        ]
         self.transform = transform  # pipeline of transforms
         self.load_feat = load_feat
 
@@ -55,37 +77,76 @@ class EpicKitchensDataset(data.Dataset, ABC):
             self.model_features = None
             for m in self.modalities:
                 # load features for each modality
-                model_features = pd.DataFrame(pd.read_pickle(os.path.join("saved_features",
-                                                                          self.dataset_conf[m].features_name + "_" +
-                                                                          pickle_name))['features'])[["uid", "features_" + m]]
+                model_features = pd.DataFrame(
+                    pd.read_pickle(
+                        os.path.join(
+                            "saved_features",
+                            self.dataset_conf[m].features_name + "_" + pickle_name,
+                        )
+                    )["features"]
+                )[["uid", "features_" + m]]
                 if self.model_features is None:
                     self.model_features = model_features
                 else:
-                    self.model_features = pd.merge(self.model_features, model_features, how="inner", on="uid")
+                    self.model_features = pd.merge(
+                        self.model_features, model_features, how="inner", on="uid"
+                    )
 
-            self.model_features = pd.merge(self.model_features, self.list_file, how="inner", on="uid")
+            self.model_features = pd.merge(
+                self.model_features, self.list_file, how="inner", on="uid"
+            )
 
-    def _get_train_indices(self, record, modality='RGB'):
-        ##################################################################
-        # TODO: implement sampling for training mode                     #
-        # Give the record and the modality, this function should return  #
-        # a list of integers representing the frames to be selected from #
-        # the video clip.                                                #
-        # Remember that the returned array should have size              #
-        #           num_clip x num_frames_per_clip                       #
-        ##################################################################
-        raise NotImplementedError("You should implement _get_train_indices")
+    def _get_train_indices(self, record:EpicVideoRecord, modality="RGB"):
+        if self.dense_sampling:
+            frame_idx = []
+            highest_idx = max(0, record.num_frames[modality] - self.stride * self.num_frames_per_clip[modality]-1)
+            for _ in range(self.num_clips):
+                if highest_idx == 0:
+                    random_offset = 0
+                else:
+                    random_offset = np.random.randint(0, highest_idx)
+                clip_idx = [(random_offset + self.stride * x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                frame_idx.extend(clip_idx)
+        else:  # uniform sampling
+            frame_idx = []
+            highest_idx = max(0,record.num_frames[modality] - self.num_frames_per_clip[modality]-1)
+            for _ in range(self.num_clips):
+                if highest_idx == 0:
+                    random_offset = 0
+                else:
+                    random_offset = np.random.randint(0, highest_idx)
+                clip_idx = [(random_offset + x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                frame_idx.extend(clip_idx)
+        frame_idx = np.asarray(frame_idx)
+        # sort the indexes?
+        # frame_idx = np.sort(frame_idx)
+        return frame_idx
 
-    def _get_val_indices(self, record, modality):
-        ##################################################################
-        # TODO: implement sampling for testing mode                      #
-        # Give the record and the modality, this function should return  #
-        # a list of integers representing the frames to be selected from #
-        # the video clip.                                                #
-        # Remember that the returned array should have size              #
-        #           num_clip x num_frames_per_clip                       #
-        ##################################################################
-        raise NotImplementedError("You should implement _get_val_indices")
+    def _get_val_indices(self, record:EpicVideoRecord, modality):
+        if self.dense_sampling:
+            frame_idx = []
+            highest_idx = max(0, record.num_frames[modality] - self.stride * self.num_frames_per_clip[modality]-1)
+            for _ in range(self.num_clips):
+                if highest_idx == 0:
+                    random_offset = 0
+                else:
+                    random_offset = np.random.randint(0, highest_idx)
+                clip_idx = [(random_offset + self.stride * x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                frame_idx.extend(clip_idx)
+        else:  # uniform sampling
+            frame_idx = []
+            highest_idx = max(0,record.num_frames[modality] - self.num_frames_per_clip[modality]-1)
+            for _ in range(self.num_clips):
+                if highest_idx == 0:
+                    random_offset = 0
+                else:
+                    random_offset = np.random.randint(0, highest_idx)
+                clip_idx = [(random_offset + x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                frame_idx.extend(clip_idx)
+        frame_idx = np.asarray(frame_idx)
+        # sort the indexes?
+        frame_idx = np.sort(frame_idx)
+        return frame_idx
 
     def __getitem__(self, index):
 
@@ -98,7 +159,9 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
         if self.load_feat:
             sample = {}
-            sample_row = self.model_features[self.model_features["uid"] == int(record.uid)]
+            sample_row = self.model_features[
+                self.model_features["uid"] == int(record.uid)
+            ]
             assert len(sample_row) == 1
             for m in self.modalities:
                 sample[m] = sample_row["features_" + m].values[0]
@@ -142,25 +205,43 @@ class EpicKitchensDataset(data.Dataset, ABC):
         data_path = self.dataset_conf[modality].data_path
         tmpl = self.dataset_conf[modality].tmpl
 
-        if modality == 'RGB' or modality == 'RGBDiff':
+        if modality == "RGB" or modality == "RGBDiff":
             # here the offset for the starting index of the sample is added
-
             idx_untrimmed = record.start_frame + idx
             try:
-                img = Image.open(os.path.join(data_path, record.untrimmed_video_name, tmpl.format(idx_untrimmed))) \
-                    .convert('RGB')
+                img = Image.open(
+                    os.path.join(
+                        data_path,
+                        record.untrimmed_video_name,
+                        tmpl.format(idx_untrimmed),
+                    )
+                ).convert("RGB")
             except FileNotFoundError:
-                print("Img not found")
-                max_idx_video = int(sorted(glob.glob(os.path.join(data_path,
-                                                                  record.untrimmed_video_name,
-                                                                  "img_*")))[-1].split("_")[-1].split(".")[0])
+                print("start:",record.start_frame, "end:",record.end_frame ,"id:",idx)
+                print("Img not found:", record.untrimmed_video_name, idx_untrimmed, tmpl.format(idx_untrimmed))
+                max_idx_video = int(
+                    sorted(
+                        glob.glob(
+                            os.path.join(
+                                data_path, record.untrimmed_video_name, "img_*"
+                            )
+                        )
+                    )[-1]
+                    .split("_")[-1]
+                    .split(".")[0]
+                )
                 if idx_untrimmed > max_idx_video:
-                    img = Image.open(os.path.join(data_path, record.untrimmed_video_name, tmpl.format(max_idx_video))) \
-                        .convert('RGB')
+                    img = Image.open(
+                        os.path.join(
+                            data_path,
+                            record.untrimmed_video_name,
+                            tmpl.format(max_idx_video),
+                        )
+                    ).convert("RGB")
                 else:
                     raise FileNotFoundError
             return [img]
-        
+
         else:
             raise NotImplementedError("Modality not implemented")
 
