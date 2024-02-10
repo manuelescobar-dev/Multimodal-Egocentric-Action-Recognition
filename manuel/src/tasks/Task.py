@@ -93,7 +93,10 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         """
         logger.info("Restoring {} for modality {} from {}".format(self.name, m, path))
 
-        checkpoint = torch.load(path, map_location="cpu")
+        if torch.cuda.is_available():
+            checkpoint = torch.load(path)
+        else:
+            checkpoint = torch.load(path, map_location="cpu")
 
         # Restore the state of the task
         self.current_iter = checkpoint["iteration"]

@@ -67,6 +67,9 @@ class EpicKitchensDataset(data.Dataset, ABC):
         logger.info(
             f"Dataloader for {split}-{self.mode} with {len(self.list_file)} samples generated"
         )
+        logger.info(
+            f"Loading {split} labels from {self.dataset_conf.annotations_path} with {pickle_name}"
+        )
         self.video_list = [
             EpicVideoRecord(tup, self.dataset_conf) for tup in self.list_file.iterrows()
         ]
@@ -74,6 +77,9 @@ class EpicKitchensDataset(data.Dataset, ABC):
         self.load_feat = load_feat
 
         if self.load_feat:
+            logger.info(
+                f"Loading features for {split}-{self.mode} with {len(self.list_file)} samples"
+            )
             self.model_features = None
             for m in self.modalities:
                 # load features for each modality
