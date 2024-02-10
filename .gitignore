@@ -4,6 +4,7 @@
 saved_models/
 data/
 *.vscode
+saved_features/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
