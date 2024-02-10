@@ -4,6 +4,7 @@ from utils.logger import logger
 
 FRAMES = [5, 10, 15]
 SPLITS = ["train", "test"]
+SAMPLING = [True, False]
 
 
 def run_command(args):
@@ -16,6 +17,7 @@ def run_command(args):
         f"dataset.RGB.data_path={args['data_path']}",
         f"split={args['split']}",
         f"save.num_clips={args['num_clips']}",
+        f"save.dense_sampling.RGB={args['sampling']}",
     ]
     subprocess.run(command)
 
@@ -29,16 +31,18 @@ if __name__ == "__main__":
     arguments_list = []
     for i in FRAMES:
         for j in SPLITS:
-            arguments_list.append(
-                {
-                    "name": f"feat_{i}_{j}",
-                    "config": "configs/I3D_save_feat.yaml",
-                    "shift": "D1-D1",
-                    "data_path": "data/EK",
-                    "split": j,
-                    "num_clips": i,
-                }
-            )
+            for k in SAMPLING:
+                arguments_list.append(
+                    {
+                        "name": f"feat_{i}_{j}_{k}",
+                        "config": "configs/I3D_save_feat.yaml",
+                        "shift": "D1-D1",
+                        "data_path": "data/EK",
+                        "split": j,
+                        "num_clips": i,
+                        "sampling": k,
+                    }
+                )
 
     # Execute commands sequentially
     for args in arguments_list:

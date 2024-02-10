@@ -102,57 +102,54 @@ class EpicKitchensDataset(data.Dataset, ABC):
                 self.model_features, self.list_file, how="inner", on="uid"
             )
 
-    def _get_train_indices(self, record:EpicVideoRecord, modality="RGB"):
-        if self.dense_sampling:
-            frame_idx = []
-            highest_idx = max(0, record.num_frames[modality] - self.stride * self.num_frames_per_clip[modality]-1)
-            for _ in range(self.num_clips):
-                if highest_idx == 0:
-                    random_offset = 0
-                else:
-                    random_offset = np.random.randint(0, highest_idx)
-                clip_idx = [(random_offset + self.stride * x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
-                frame_idx.extend(clip_idx)
-        else:  # uniform sampling
-            frame_idx = []
-            highest_idx = max(0,record.num_frames[modality] - self.num_frames_per_clip[modality]-1)
-            for _ in range(self.num_clips):
-                if highest_idx == 0:
-                    random_offset = 0
-                else:
-                    random_offset = np.random.randint(0, highest_idx)
-                clip_idx = [(random_offset + x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
-                frame_idx.extend(clip_idx)
-        frame_idx = np.asarray(frame_idx)
-        # sort the indexes?
-        # frame_idx = np.sort(frame_idx)
-        return frame_idx
+    def _get_train_indices(self, record: EpicVideoRecord, modality="RGB"):
+        return self.record_indices(record, modality)
 
-    def _get_val_indices(self, record:EpicVideoRecord, modality):
+    def record_indices(self, record: EpicVideoRecord, modality, random_offset=True):
+        def get_offset(highest_idx, i):
+            if random_offset:
+                if highest_idx == 0:
+                    offset = 0
+                else:
+                    offset = np.random.randint(0, highest_idx)
+            else:
+                offset = i * ((record.num_frames[modality] - 1) // self.num_clips)
+            return offset
+
         if self.dense_sampling:
             frame_idx = []
-            highest_idx = max(0, record.num_frames[modality] - self.stride * self.num_frames_per_clip[modality]-1)
-            for _ in range(self.num_clips):
-                if highest_idx == 0:
-                    random_offset = 0
-                else:
-                    random_offset = np.random.randint(0, highest_idx)
-                clip_idx = [(random_offset + self.stride * x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+            highest_idx = max(
+                0,
+                record.num_frames[modality]
+                - self.stride * self.num_frames_per_clip[modality]
+                - 1,
+            )
+            for i in range(self.num_clips):
+                offset = get_offset(highest_idx, i)
+                clip_idx = [
+                    (offset + self.stride * x) % (record.num_frames[modality] - 1)
+                    for x in range(self.num_frames_per_clip[modality])
+                ]
                 frame_idx.extend(clip_idx)
         else:  # uniform sampling
             frame_idx = []
-            highest_idx = max(0,record.num_frames[modality] - self.num_frames_per_clip[modality]-1)
+            highest_idx = max(
+                0, record.num_frames[modality] - self.num_frames_per_clip[modality] - 1
+            )
             for _ in range(self.num_clips):
-                if highest_idx == 0:
-                    random_offset = 0
-                else:
-                    random_offset = np.random.randint(0, highest_idx)
-                clip_idx = [(random_offset + x)%(record.num_frames[modality]-1) for x in range(self.num_frames_per_clip[modality])]
+                offset = get_offset(highest_idx, i)
+                clip_idx = [
+                    (offset + x) % (record.num_frames[modality] - 1)
+                    for x in range(self.num_frames_per_clip[modality])
+                ]
                 frame_idx.extend(clip_idx)
         frame_idx = np.asarray(frame_idx)
         # sort the indexes?
         frame_idx = np.sort(frame_idx)
         return frame_idx
+
+    def _get_val_indices(self, record: EpicVideoRecord, modality):
+        return self.record_indices(record, modality, random_offset=False)
 
     def __getitem__(self, index):
 
@@ -223,8 +220,15 @@ class EpicKitchensDataset(data.Dataset, ABC):
                     )
                 ).convert("RGB")
             except FileNotFoundError:
-                print("start:",record.start_frame, "end:",record.end_frame ,"id:",idx)
-                print("Img not found:", record.untrimmed_video_name, idx_untrimmed, tmpl.format(idx_untrimmed))
+                print(
+                    "start:", record.start_frame, "end:", record.end_frame, "id:", idx
+                )
+                print(
+                    "Img not found:",
+                    record.untrimmed_video_name,
+                    idx_untrimmed,
+                    tmpl.format(idx_untrimmed),
+                )
                 max_idx_video = int(
                     sorted(
                         glob.glob(
