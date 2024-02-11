@@ -102,9 +102,6 @@ class EpicKitchensDataset(data.Dataset, ABC):
                 self.model_features, self.list_file, how="inner", on="uid"
             )
 
-    def _get_train_indices(self, record: EpicVideoRecord, modality="RGB"):
-        return self.record_indices(record, modality)
-
     def record_indices(self, record: EpicVideoRecord, modality, random_offset=True):
         def get_offset(highest_idx, i):
             if random_offset:
@@ -146,8 +143,97 @@ class EpicKitchensDataset(data.Dataset, ABC):
         frame_idx = np.asarray(frame_idx)
         return frame_idx
 
+    def _get_train_indices(self, record: EpicVideoRecord, modality="RGB"):
+        def random_offset(highest_idx):
+            if highest_idx == 0:
+                offset = 0
+            else:
+                offset = np.random.randint(0, highest_idx + 1)
+            return offset
+
+        frame_idx = []
+        # Dense sampling
+        if self.dense_sampling:
+            # Finds the highest possible index
+            highest_idx = max(
+                0,
+                record.num_frames[modality]
+                - (self.stride) * self.num_frames_per_clip[modality],
+            )
+            # Selects one random initial frame for each clip
+            for _ in range(self.num_clips):
+                # Selects a random offset between 0 and the highest possible index
+                offset = random_offset(highest_idx)
+                # Selects the frames for the clip
+                frames = [
+                    (offset + self.stride * x) % (record.num_frames[modality] - 1)
+                    for x in range(self.num_frames_per_clip[modality])
+                ]
+                # Appends the frames to the clips list
+                frame_idx.extend(frames)
+        # Uniform sampling
+        else:
+            # Frames available for each clip
+            clip_frames = max(
+                record.num_frames[modality] // self.num_clips,
+                self.num_frames_per_clip[modality],
+            )
+            highest_idx = max(0, record.num_frames[modality] - clip_frames)
+            for _ in range(self.num_clips):
+                # Selects a random offset between 0 and the highest possible index
+                offset = random_offset(highest_idx)
+                # Selects K evenly spaced frames from each clip
+                frames = np.linspace(
+                    offset,
+                    offset + clip_frames - 1,
+                    self.num_frames_per_clip[modality],
+                    dtype=int,
+                )
+                frame_idx.extend(frames)
+        frame_idx = np.asarray(frame_idx)
+        return frame_idx
+
     def _get_val_indices(self, record: EpicVideoRecord, modality):
-        return self.record_indices(record, modality, random_offset=False)
+        frame_idx = []
+        # Dense sampling
+        if self.dense_sampling:
+            # Number of frames in each half of the clip
+            clip_frames = record.num_frames[modality] // self.num_clips // 2
+            # Space between first and last frame taken from each clip
+            tot_frames = self.num_frames_per_clip[modality] * self.stride
+            if tot_frames // 2 <= clip_frames:
+                # Selects evenly spaced center points for each clip
+                center_points = np.linspace(
+                    clip_frames,
+                    record.num_frames[modality] - clip_frames,
+                    self.num_clips,
+                    dtype=int,
+                )
+            else:
+                # Some segments overlap
+                center_points = np.linspace(
+                    tot_frames // 2,
+                    record.num_frames[modality] - tot_frames // 2,
+                    self.num_clips,
+                    dtype=int,
+                )
+            # Selects the frames for each clip
+            for center in center_points:
+                frames = [
+                    (center - tot_frames // 2 + self.stride * x)
+                    % (record.num_frames[modality] - 1)
+                    for x in range(self.num_frames_per_clip[modality])
+                ]
+                frame_idx.extend(frames)
+        # Uniform sampling
+        else:
+            frame_idx = np.linspace(
+                0,
+                record.num_frames[modality] - 1,
+                self.num_frames_per_clip[modality] * self.num_clips,
+                dtype=int,
+            )
+        return np.asarray(frame_idx)
 
     def __getitem__(self, index):
 

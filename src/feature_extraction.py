@@ -3,7 +3,7 @@ from multiprocessing import Pool, Process
 from utils.logger import logger
 
 FRAMES = [5, 10, 25]
-SPLITS = ["train", "test"]
+SPLITS = ["test", "train"]
 SAMPLING = [True, False]
 
 
@@ -16,7 +16,7 @@ def run_command(args):
         f"dataset.shift={args['shift']}",
         f"dataset.RGB.data_path={args['data_path']}",
         f"split={args['split']}",
-        f"save.num_clips={args['num_clips']}",
+        f"save.num_frames_per_clip.RGB={args['num_frames_per_clip']}",
         f"save.dense_sampling.RGB={args['sampling']}",
     ]
     subprocess.run(command)
@@ -39,7 +39,7 @@ if __name__ == "__main__":
                         "shift": "D1-D1",
                         "data_path": "data/EK",
                         "split": j,
-                        "num_clips": i,
+                        "num_frames_per_clip": i,
                         "sampling": k,
                     }
                 )

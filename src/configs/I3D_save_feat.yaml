@@ -4,11 +4,11 @@ split: ???
 resume_from: ./saved_models/I3D_SourceOnlyD1
 
 save:
-  num_clips: ???
+  num_clips: 5
   dense_sampling:
     RGB: ???
   num_frames_per_clip:
-    RGB: 16
+    RGB: ???
 
 dataset:
   annotations_path: train_val
