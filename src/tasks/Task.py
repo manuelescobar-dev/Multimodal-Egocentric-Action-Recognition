@@ -93,7 +93,10 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         """
         logger.info("Restoring {} for modality {} from {}".format(self.name, m, path))
 
-        checkpoint = torch.load(path)
+        if torch.cuda.is_available():
+            checkpoint = torch.load(path)
+        else:
+            checkpoint = torch.load(path, map_location="cpu")
 
         # Restore the state of the task
         self.current_iter = checkpoint["iteration"]
@@ -138,7 +141,9 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             list(
                 sorted(
                     Path(path).iterdir(),
-                    key=lambda date: datetime.strptime(os.path.basename(os.path.normpath(date)), "%b%d_%H-%M-%S"),
+                    key=lambda date: datetime.strptime(
+                        os.path.basename(os.path.normpath(date)), "%b%d_%H-%M-%S"
+                    ),
                 )
             )[-1]
         )
@@ -166,14 +171,23 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         path : str
             directory to load models from
         """
+        dirs = [x for x in Path(path).iterdir() if x.is_dir()]
+
         # List all the files in the path in chronological order (1st is most recent, last is less recent)
         last_models_dir = list(
             sorted(
-                Path(path).iterdir(),
-                key=lambda date: datetime.strptime(os.path.basename(os.path.normpath(date)), "%b%d_%H-%M-%S"),
+                dirs,
+                key=lambda date: datetime.strptime(
+                    os.path.basename(os.path.normpath(date)), "%b%d_%H-%M-%S"
+                ),
             )
         )[-1]
-        saved_models = [x for x in reversed(sorted(Path(last_models_dir).iterdir(), key=os.path.getmtime))]
+        saved_models = [
+            x
+            for x in reversed(
+                sorted(Path(last_models_dir).iterdir(), key=os.path.getmtime)
+            )
+        ]
 
         for m in self.modalities:
             # Get the correct model (modality, name, idx)
@@ -188,7 +202,9 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             model_path = os.path.join(last_models_dir, model)
             self.__restore_checkpoint(m, model_path)
 
-    def save_model(self, current_iter: int, last_iter_acc: float, prefix: Optional[str] = None):
+    def save_model(
+        self, current_iter: int, last_iter_acc: float, prefix: Optional[str] = None
+    ):
         """Save the model.
 
         Parameters
@@ -203,11 +219,22 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         for m in self.modalities:
             # build the filename of the model
             if prefix is not None:
-                filename = prefix + "_" + self.name + "_" + m + "_" + str(self.model_count) + ".pth"
+                filename = (
+                    prefix
+                    + "_"
+                    + self.name
+                    + "_"
+                    + m
+                    + "_"
+                    + str(self.model_count)
+                    + ".pth"
+                )
             else:
                 filename = self.name + "_" + m + "_" + str(self.model_count) + ".pth"
 
-            if not os.path.exists(os.path.join(self.models_dir, self.args.experiment_dir)):
+            if not os.path.exists(
+                os.path.join(self.models_dir, self.args.experiment_dir)
+            ):
                 os.makedirs(os.path.join(self.models_dir, self.args.experiment_dir))
 
             try:
@@ -260,7 +287,9 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             for name, param in self.task_models[m].named_parameters():
                 if param.requires_grad and param.grad is not None:
                     if param.grad.norm(2).item() > 25:
-                        logger.info(f"Param {name} has a gradient whose L2 norm is over 25")
+                        logger.info(
+                            f"Param {name} has a gradient whose L2 norm is over 25"
+                        )
 
     def __str__(self) -> str:
         return self.name

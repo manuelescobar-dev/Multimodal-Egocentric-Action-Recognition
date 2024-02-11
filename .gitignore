@@ -1,9 +1,9 @@
 .DS_Store
 **.DS_Store
 *.DS_Store
-saved_features/
-saved_models/
-data/
+*.jpg
+*.pth
+*.pkl
 *.vscode
 
 # Byte-compiled / optimized / DLL files

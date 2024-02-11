@@ -1,12 +1,12 @@
-action: save # train or test
+action: save # train, test, or save
 name: saved_feat_I3D
-split: test
+split: ???
 resume_from: ./saved_models/I3D_SourceOnlyD1
 
 save:
-  num_clips: 5
+  num_clips: ???
   dense_sampling:
-    RGB: True
+    RGB: ???
   num_frames_per_clip:
     RGB: 16
 

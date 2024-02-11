@@ -144,8 +144,6 @@ class EpicKitchensDataset(data.Dataset, ABC):
                 ]
                 frame_idx.extend(clip_idx)
         frame_idx = np.asarray(frame_idx)
-        # sort the indexes?
-        frame_idx = np.sort(frame_idx)
         return frame_idx
 
     def _get_val_indices(self, record: EpicVideoRecord, modality):

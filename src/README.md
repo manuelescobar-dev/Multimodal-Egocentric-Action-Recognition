@@ -1,28 +1,29 @@
-# Starting code for [course project](https://docs.google.com/document/d/12SDMbO3MgdawRx1C6XhHFtmAwzCXgpGQTElbGx4Qm78/edit?usp=sharing) of Advanced Machine Learning (AML) 2023
+# Structure
+- `train_classifier.py`: 
+- `save_feat.py`:
+- `colab_runner.ipynb`:
+- `utils`
+  - `args.py`: Defines the arguments for the training and testing scripts. Reads the arguments from the command line and from the config folder files.
+  - `epic_record.py`:
+  - `loaders.py`:
+  - `logger.py`:
+  - `transforms.py`:
+  - `utils.py`:
+  - `video_record.py`:
+- `train_val`
+- `tasks`
+- `pretrained_i3d`
+- `models`: Contains the model classes.
+  - `I3D.py`: Contains the I3D model.
+  - `VideoModel.py`: To be implemented.
+  - `FinalClassifier.py`: To be implemented.
+- `configs`
+- `action_net`
 
-## Getting started
-
-You can play around with the code on your local machine, and use Google Colab for training on GPUs. 
-In all the cases it is necessary to have the reduced version of the dataset where you are running the code. For simplicity, we inserted just the necessary frames at [this link](https://drive.google.com/drive/u/1/folders/1dJOtZ07WovP3YSCRAnU0E4gsfqDzpMVo).
-
-Before starting to implement your own code, make sure to:
-1. read and study the material provided
-2. understand how all the scripts are working and interacting
-3. get familiar with the structure of the [EPIC-KITCHENS dataset](https://epic-kitchens.github.io/2022), what a sample, a clip and a frame are
-4. play around with the code in the template to familiarize with all the tools.
-
-### 1. Local
-
-You can work on your local machine directly, the code which needs to be run does not require heavy computations. 
-In order to do so a file with all the requirements for the python environment is provided [here](requirements.yaml), it contains even more packages than the strictly needed ones so if you want to install everything step-by-step just be careful to use pytorch 1.12 and torchvision 0.13.
-
-### 2. Google Colab
-
-You can also run the code on [Google Colab](https://colab.research.google.com/).
-
-- Upload all the scripts in this repo.
-- Prepare a proper notebook structured as the `train_classifier.py` script.
-
-As a reference, `colab_runner.ipynb` provides an example of how to set up a working environment in Google Colab.
-
-NOTE: you need to stay connected to the Google Colab interface at all times for your python scripts to keep training.
+# Usage
+## Arguments (args)
+1. Loads default arguments from the `default.yaml` file in the `configs` folder.
+2. In command line `--config`: Path to the config file, else debug.yaml is used.
+3. Merges the arguments from the command line with the default arguments.
+4. Merges path configurations with the ones in config file.
+5. Adds log directories to args.
