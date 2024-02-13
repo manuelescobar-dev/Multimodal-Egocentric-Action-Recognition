@@ -79,7 +79,14 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             the device to move the models on, by default torch.device('cuda')
         """
         for modality, model in self.task_models.items():
+            logger.info(f"Loading {modality} model with DataParallel")
             self.task_models[modality] = torch.nn.DataParallel(model).to(device)
+            """if torch.cuda.is_available():
+                logger.info(f"Loading {modality} model with DataParallel")
+                self.task_models[modality] = torch.nn.DataParallel(model).to(device)
+            else:
+                logger.info(f"Loading {modality} model with {device}")
+                self.task_models[modality] = model.to(device)"""
 
     def __restore_checkpoint(self, m: str, path: str):
         """Restore a checkpoint from path.
@@ -93,7 +100,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         """
         logger.info("Restoring {} for modality {} from {}".format(self.name, m, path))
 
-        if torch.cuda.is_available():
+        if torch.cuda.is_available() or torch.__version__ >= "2.0.0":
             checkpoint = torch.load(path)
         else:
             checkpoint = torch.load(path, map_location="cpu")
@@ -188,12 +195,12 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
                 sorted(Path(last_models_dir).iterdir(), key=os.path.getmtime)
             )
         ]
-
         for m in self.modalities:
             # Get the correct model (modality, name, idx)
             model = list(
                 filter(
-                    lambda x: m == x.name.split(".")[0].split("_")[-2]
+                    lambda x: x.name.split(".")[1] != "DS_Store"
+                    and m == x.name.split(".")[0].split("_")[-2]
                     and self.name == x.name.split(".")[0].split("_")[-3],
                     saved_models,
                 )
@@ -232,10 +239,11 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             else:
                 filename = self.name + "_" + m + "_" + str(self.model_count) + ".pth"
 
-            if not os.path.exists(
-                os.path.join(self.models_dir, self.args.experiment_dir)
-            ):
-                os.makedirs(os.path.join(self.models_dir, self.args.experiment_dir))
+            dir_path = os.path.join(
+                self.models_dir, self.args.experiment_dir.split("/")[1]
+            )
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
 
             try:
                 torch.save(
@@ -249,7 +257,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
                         "optimizer_state_dict": self.optimizer[m].state_dict(),
                         "last_model_count_saved": self.model_count,
                     },
-                    os.path.join(self.models_dir, self.args.experiment_dir, filename),
+                    os.path.join(dir_path, filename),
                 )
                 self.model_count = self.model_count + 1 if self.model_count < 9 else 1
 
