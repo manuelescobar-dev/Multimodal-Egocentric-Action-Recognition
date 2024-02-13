@@ -8,6 +8,7 @@ wandb_name: null # needed for wandb logging
 resume_from: null # checkpoint directory
 logname: null # name of the logs
 models_dir: null # directory containing all the models
+multiclip: True
 
 train:
   num_iter: 5000 # number of training iterations with total_batch size
@@ -52,3 +53,4 @@ models:
     sgd_momentum: 0.9
     weight_decay: 1e-7
     weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'
+    hidden_size: 1024

@@ -2,35 +2,26 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-class LSTM(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layer_dim, output_dim):
-        super(LSTM, self).__init__()
-        # Hidden dimensions
-        self.hidden_dim = hidden_dim
 
-        # Number of hidden layers
-        self.layer_dim = layer_dim
+class LSTM_Classifier(nn.Module):
+    def __init__(self, num_classes, model_config, **kwargs):
+        super().__init__()
+        self.model_config = model_config
+        self.num_classes = num_classes
 
-        # Building your LSTM
-        # batch_first=True causes input/output tensors to be of shape
-        # (batch_dim, seq_dim, feature_dim)
-        self.lstm = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
+        self.lstm = nn.LSTM(1024, self.model_config.hidden_size, batch_first=True)
 
         # Readout layer
-        self.fc = nn.Linear(hidden_dim, output_dim)
+        # self.avgpool = nn.AvgPool2d(7)  # Average pooling layer 7x7
+        self.dropout = nn.Dropout(0.7)  # Dropout layer
+        self.fc = nn.Linear(
+            self.model_config.hidden_size, self.num_classes
+        )  # Fully connected layer
+        self.classifier = nn.Sequential(self.dropout, self.fc)
 
     def forward(self, x):
-        # Initialize hidden state with zeros
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).requires_grad_()
-
-        # Initialize cell state
-        c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).requires_grad_()
-
-        # We need to detach as we are doing truncated backpropagation through time (BPTT)
-        # If we don't, we'll backprop all the way to the start even after going through another batch
-        out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
-
-        # Index hidden state of last time step
-        out = self.fc(out[:, -1, :])
-        # out.size() --> 100, 10
-        return out
+        # x = self.avgpool(x)  # Average pooling
+        x, _ = self.lstm(x)
+        x = x[:, -1, :]
+        x = self.classifier(x)
+        return x, {}
