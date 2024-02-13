@@ -240,7 +240,8 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
                 filename = self.name + "_" + m + "_" + str(self.model_count) + ".pth"
 
             dir_path = os.path.join(
-                self.models_dir, self.args.experiment_dir.split("/")[1]
+                self.models_dir,
+                os.path.basename(os.path.normpath(self.args.experiment_dir.split)),
             )
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
