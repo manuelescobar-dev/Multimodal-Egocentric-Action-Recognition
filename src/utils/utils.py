@@ -4,7 +4,7 @@ import torch
 
 def get_domains_and_labels(args):
     num_verbs = 8
-    domains = {'D1': 8, 'D2': 1, 'D3': 22}
+    domains = {"D1": 8, "D2": 1, "D3": 22}
     source_domain = domains[args.dataset.shift.split("-")[0]]
     target_domain = domains[args.dataset.shift.split("-")[1]]
     valid_labels = [i for i in range(num_verbs)]
@@ -19,7 +19,14 @@ class Accuracy(object):
         assert len(topk) > 0
         self.topk = topk
         self.classes = classes
-        self.avg, self.val, self.sum, self.count, self.correct, self.total = None, None, None, None, None, None
+        self.avg, self.val, self.sum, self.count, self.correct, self.total = (
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
         self.reset()
 
     def reset(self):
@@ -40,7 +47,9 @@ class Accuracy(object):
                 class_total = res[2]
                 res = res[0]
             else:
-                res = self.accuracy(outputs, labels, perclass_acc=False, topk=[top_k])[0]
+                res = self.accuracy(outputs, labels, perclass_acc=False, topk=[top_k])[
+                    0
+                ]
             self.val[top_k] = res
             self.sum[top_k] += res * batch
             self.count[top_k] += batch
@@ -69,7 +78,9 @@ class Accuracy(object):
             res.append(float(correct_k.mul_(100.0 / batch_size)))
         if perclass_acc:
             # getting also top1 accuracy per class
-            class_correct, class_total = self.accuracy_per_class(correct[:1].view(-1), target)
+            class_correct, class_total = self.accuracy_per_class(
+                correct[:1].view(-1), target
+            )
             res.append(class_correct)
             res.append(class_total)
         return res
@@ -81,8 +92,8 @@ class Accuracy(object):
                                   the element in a specific poisition was correctly classified or not
         target -> (batch, label): vector containing the ground truth for each element
         """
-        class_correct = list(0. for _ in range(0, self.classes))
-        class_total = list(0. for _ in range(0, self.classes))
+        class_correct = list(0.0 for _ in range(0, self.classes))
+        class_total = list(0.0 for _ in range(0, self.classes))
         for i in range(0, target.size(0)):
             class_label = target[i].item()
             class_correct[class_label] += correct[i].item()
@@ -92,6 +103,7 @@ class Accuracy(object):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
         self.val, self.acc, self.avg, self.sum, self.count = 0, 0, 0, 0, 0
@@ -114,9 +126,9 @@ class AverageMeter(object):
 def pformat_dict(d, indent=0):
     fstr = ""
     for key, value in d.items():
-        fstr += '\n' + '  ' * indent + str(key) + ":"
+        fstr += "\n" + "  " * indent + str(key) + ":"
         if isinstance(value, Mapping):
-            fstr += pformat_dict(value, indent+1)
+            fstr += pformat_dict(value, indent + 1)
         else:
-            fstr += ' ' + str(value)
+            fstr += " " + str(value)
     return fstr
