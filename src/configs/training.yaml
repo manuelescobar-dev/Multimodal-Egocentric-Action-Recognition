@@ -42,7 +42,7 @@ dataset:
 # these are the action recognition models for each modality
 models:
   RGB:
-    model: OriginalClassifier
+    model: ???
     dropout: 0.5
     normalize: False
     resolution: 224
