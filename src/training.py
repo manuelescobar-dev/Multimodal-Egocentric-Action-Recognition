@@ -8,7 +8,7 @@ FRAMES = [5, 10, 25]
 ACTIONS = ["train"]
 SAMPLING = [True, False]
 CONFIG = "configs/training.yaml"
-MODELS = ["LSTM_Classifier"]
+MODELS = ["LSTM_Classifier"]  # ["I3D_Classifier", "LSTM_Classifier", "MLP_Classifier"]
 
 
 def run_command(args):
@@ -24,6 +24,7 @@ def run_command(args):
         f"test.dense_sampling.RGB={args['sampling']}",
         f"dataset.RGB.features_name={args['feats_name']}",
         f"models.RGB.model={args['model']}",
+        f"multiclip={args['model']=='LSTM_Classifier'}",
     ]
     if args["resume_from"]:
         command.append(f"resume_from={os.path.join('saved_models', args['name'])}")

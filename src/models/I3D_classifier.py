@@ -2,7 +2,7 @@ from torch import nn
 from models.I3D import InceptionI3d
 
 
-class OriginalClassifier(nn.Module):
+class I3D_Classifier(nn.Module):
     def __init__(self, num_classes, model_config, **kwargs):
         super().__init__()
         self.num_classes = num_classes
