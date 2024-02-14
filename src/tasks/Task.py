@@ -101,9 +101,53 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         logger.info("Restoring {} for modality {} from {}".format(self.name, m, path))
 
         if torch.cuda.is_available() or torch.__version__ >= "2.0.0":
-            checkpoint = torch.load(path)
+            try:
+                checkpoint = torch.load(path)
+            except:
+                dir_path = os.path.dirname(path)
+                model_name = os.path.basename(os.path.normpath(path))
+                model_sep = model_name.split(".")
+                model_num = model_sep[0][-1]
+                for i in range(int(model_num) - 1, -1, -1):
+                    try:
+                        model_path = os.path.join(
+                            dir_path,
+                            model_name[: (-2 - len(model_sep[1]))]
+                            + str(i)
+                            + "."
+                            + model_sep[1],
+                        )
+                        logger.info(
+                            f"Problem restoring model. Trying model {model_path} "
+                        )
+                        checkpoint = torch.load(model_path)
+                        break
+                    except:
+                        continue
         else:
-            checkpoint = torch.load(path, map_location="cpu")
+            try:
+                checkpoint = torch.load(path, map_location="cpu")
+            except:
+                dir_path = os.path.dirname(path)
+                model_name = os.path.basename(os.path.normpath(path))
+                model_sep = model_name.split(".")
+                model_num = model_sep[0][-1]
+                for i in range(int(model_num) - 1, -1, -1):
+                    try:
+                        model_path = os.path.join(
+                            dir_path,
+                            model_name[: (-2 - len(model_sep[1]))]
+                            + str(i)
+                            + "."
+                            + model_sep[1],
+                        )
+                        logger.info(
+                            f"Problem restoring model. Trying model {model_path} "
+                        )
+                        checkpoint = torch.load(model_path, map_location="cpu")
+                        break
+                    except:
+                        continue
 
         # Restore the state of the task
         self.current_iter = checkpoint["iteration"]
@@ -241,7 +285,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
 
             dir_path = os.path.join(
                 self.models_dir,
-                os.path.basename(os.path.normpath(self.args.experiment_dir.split)),
+                os.path.basename(os.path.normpath(self.args.experiment_dir)),
             )
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)

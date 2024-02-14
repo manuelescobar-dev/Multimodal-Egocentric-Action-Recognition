@@ -14,6 +14,8 @@ import models as model_list
 import tasks
 import wandb
 from utils.torch_device import get_device
+import gc
+
 
 # global variables among training functions
 training_iterations = 0
@@ -200,6 +202,9 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
             data_loader_source = iter(train_loader)
             source_data, source_label = next(data_loader_source)
         end_t = datetime.now()
+
+        # Free memory
+        torch.mps.empty_cache()
 
         logger.info(
             f"Iteration {i}/{training_iterations} batch retrieved! Elapsed time = "
