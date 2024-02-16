@@ -48,7 +48,7 @@ def main():
     # recover valid paths, domains, classes
     num_classes = 20
     # device where everything is run
-    device = torch.device(get_device())
+    device = torch.device("cpu")
     logger.info("Device: {}".format(device))
 
     # these dictionaries are for more multi-modal training/testing, each key is a modality used

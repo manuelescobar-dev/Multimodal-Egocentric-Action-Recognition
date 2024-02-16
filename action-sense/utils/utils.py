@@ -15,7 +15,7 @@ def get_domains_and_labels(args):
 class Accuracy(object):
     """Computes and stores the average and current value of different top-k accuracies from the outputs and labels"""
 
-    def __init__(self, topk=(1,), classes=8):
+    def __init__(self, topk=(1,), classes=20):
         assert len(topk) > 0
         self.topk = topk
         self.classes = classes

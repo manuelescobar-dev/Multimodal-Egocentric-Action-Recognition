@@ -127,6 +127,9 @@ class ActionRecognition(tasks.Task, ABC):
         """
         fused_logits = reduce(lambda x, y: x + y, logits.values())
         loss = self.criterion(fused_logits, label) / self.num_clips
+        # 
+        #print(fused_logits.argmax(dim=1))
+        #print(label)
         # Update the loss value, weighting it by the ratio of the batch size to the total
         # batch size (for gradient accumulation)
         self.loss.update(

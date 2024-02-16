@@ -45,8 +45,7 @@ models:
   EMG:
     model: ActionNet
     hidden_size: 50
-    dropout: 0.5
-    normalize: False
+    dropout: 0.2
     resolution: 224
     kwargs: {}
     lr_steps: 3000
@@ -56,3 +55,4 @@ models:
     fs: 160
     cutoff: 5
     num_channels: 16
+    normalization: False

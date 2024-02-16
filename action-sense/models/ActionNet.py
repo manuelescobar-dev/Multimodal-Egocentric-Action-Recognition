@@ -11,6 +11,7 @@ import math
 import torch
 from scipy.interpolate import interp1d
 from scipy.signal import butter, filtfilt
+import torch.nn.init as init
 
 
 class ActionNet(nn.Module):
@@ -21,15 +22,28 @@ class ActionNet(nn.Module):
         self.fs = self.model_config.fs
         self.cutoff = self.model_config.cutoff
         self.num_channels = self.model_config.num_channels
+        self.normalization = self.model_config.normalization
 
         # self.lstm = nn.LSTM(16, 5, batch_first=True)
         self.lstm = nn.LSTM(
-            16, self.model_config.hidden_size, batch_first=True, dtype=torch.float32
+            16, self.model_config.hidden_size, batch_first=True
         )  # LSTM layer
         self.dropout = nn.Dropout(self.model_config.dropout)  # Dropout layer
         self.fc = nn.Linear(
             self.model_config.hidden_size, self.num_classes
         )  # Fully connected layer
+        
+        # Initialize weights
+        self.init_weights()
+        
+    def init_weights(self):
+        # Initialize LSTM weights
+        for name, param in self.lstm.named_parameters():
+            if 'weight' in name:
+                init.xavier_uniform_(param)
+
+        # Initialize FC layer weights
+        init.xavier_uniform_(self.fc.weight)
 
     def forward(self, x):
         # x = self.avgpool(x)  # Average pooling
@@ -42,8 +56,6 @@ class ActionNet(nn.Module):
         x = x[:, -1, :]  # Get the last output for the sequence
         x = self.dropout(x)
         x = self.fc(x)
-        # Softmax activation
-        x = F.softmax(x, dim=1)
         return x, {}
 
     def rectify_signal(self, data):
@@ -58,8 +70,10 @@ class ActionNet(nn.Module):
         b, a = butter(order, normal_cutoff, btype="low", analog=False)
         return filtfilt(b, a, data, padlen=12)
 
-    def normalization(self, data):
-        return 2 * (data - np.min(data)) / (np.max(data) - np.min(data)) - 1
+    def normalize(self, data):
+        mn = self.normalization[0]
+        mx = self.normalization[1]
+        return 2 * (data - mn) / (mx - mn) - 1
 
     def preprocessing(self, data, steps):
         for step in steps:
@@ -69,9 +83,10 @@ class ActionNet(nn.Module):
         return self.compose, self.compose
 
     def compose(self, data):
-        for i in range(self.num_channels):
-            # Probably can be done in a more efficient way
-            data[:, i] = self.rectify_signal(data[:, i])
-            data[:, i] = self.filter_signal(data[:, i])
-            # data[:, i] = self.normalization(data[:, i])
+        if self.normalization:
+            for i in range(self.num_channels):
+                # Probably can be done in a more efficient way
+                data[:, i] = self.rectify_signal(data[:, i])
+                data[:, i] = self.filter_signal(data[:, i])
+                data[:, i] = self.normalization(data[:, i])
         return data
