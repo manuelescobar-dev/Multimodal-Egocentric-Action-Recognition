@@ -68,7 +68,8 @@ def main():
                                                                  args.split, args.dataset,
                                                                  args.save,
                                                                  args.save.num_clips,
-                                                                 augmentations[args.split]),
+                                                                 augmentations[args.split],
+                                                                 additional_info=True),
                                              batch_size=1, shuffle=False,
                                              num_workers=args.dataset.workers, pin_memory=True, drop_last=False)
         save_feat(action_classifier, loader, device, action_classifier.current_iter, num_classes)
@@ -95,7 +96,7 @@ def save_feat(model, loader, device, it, num_classes):
     features = {}
     # Iterate over the models
     with torch.no_grad():
-        for i_val, (data, label) in enumerate(loader):
+        for i_val, (data, label, uid) in enumerate(loader):
             label = label.to(device)
 
             for m in modalities:
@@ -121,7 +122,7 @@ def save_feat(model, loader, device, it, num_classes):
             for m in modalities:
                 logits[m] = torch.mean(logits[m], dim=0)
             for i in range(batch):
-                sample = {}
+                sample = {"uid": int(uid[i].cpu().detach().numpy()),}
                 for m in modalities:
                     sample["features_" + m] = features[m][:, i].cpu().detach().numpy()
                     sample["label_" + m] = label[i].cpu().detach().numpy()

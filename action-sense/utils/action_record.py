@@ -4,7 +4,12 @@ from .video_record import VideoRecord
 class ActionRecord(VideoRecord):
     def __init__(self, data, dataset_conf):
         self._data = data[1]
+        self._index = data[0]
         self.dataset_conf = dataset_conf
+        
+    @property
+    def uid(self):
+        return self._index
 
     @property
     def myo_left_timestamps(self):

@@ -114,7 +114,8 @@ class ActionSenseDataset(data.Dataset, ABC):
                 items, label = self._get_RGB(index)
                 for m in self.modalities:
                     item[m] = items[m]
-        return item, label
+        if self.additional_info:
+            return item, label, index
 
     def _get_train_indices(self, modality, record: ActionRecord, side=None):
         if side is not None:
@@ -241,10 +242,8 @@ class ActionSenseDataset(data.Dataset, ABC):
             assert len(sample_row) == 1
             for m in self.modalities:
                 sample[m] = sample_row["features_" + m].values[0]
-            if self.additional_info:
-                return sample, record.label, record.untrimmed_video_name, record.uid
-            else:
-                return sample, record.label
+            
+            return sample, record.label
 
         segment_indices = {}
         # notice that all indexes are sampled in the[0, sample_{num_frames}] range, then the start_index of the sample
