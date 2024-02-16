@@ -23,6 +23,7 @@ class ActionRecognition(tasks.Task, ABC):
         num_clips: int,
         model_args: Dict[str, float],
         args,
+        save=False,
         **kwargs,
     ) -> None:
         """Create an instance of the action recognition model.
@@ -47,7 +48,7 @@ class ActionRecognition(tasks.Task, ABC):
             model-specific arguments
         """
         super().__init__(
-            name, task_models, batch_size, total_batch, models_dir, args, **kwargs
+            name, task_models, batch_size, total_batch, models_dir, args,save=save, **kwargs
         )
         self.model_args = model_args
 
@@ -57,29 +58,30 @@ class ActionRecognition(tasks.Task, ABC):
 
         self.num_clips = num_clips
 
-        # Use the cross entropy loss as the default criterion for the classification task
-        self.criterion = torch.nn.CrossEntropyLoss(
-            weight=None,
-            size_average=None,
-            ignore_index=-100,
-            reduce=None,
-            reduction="none",
-        )
+        if not save:
+            # Use the cross entropy loss as the default criterion for the classification task
+            self.criterion = torch.nn.CrossEntropyLoss(
+                weight=None,
+                size_average=None,
+                ignore_index=-100,
+                reduce=None,
+                reduction="none",
+            )
 
-        # Initializeq the model parameters and the optimizer
-        optim_params = {}
-        self.optimizer = dict()
-        for m in self.modalities:
-            optim_params[m] = filter(
-                lambda parameter: parameter.requires_grad,
-                self.task_models[m].parameters(),
-            )
-            self.optimizer[m] = torch.optim.SGD(
-                optim_params[m],
-                model_args[m].lr,
-                weight_decay=model_args[m].weight_decay,
-                momentum=model_args[m].sgd_momentum,
-            )
+            # Initializeq the model parameters and the optimizer
+            optim_params = {}
+            self.optimizer = dict()
+            for m in self.modalities:
+                optim_params[m] = filter(
+                    lambda parameter: parameter.requires_grad,
+                    self.task_models[m].parameters(),
+                )
+                self.optimizer[m] = torch.optim.SGD(
+                    optim_params[m],
+                    model_args[m].lr,
+                    weight_decay=model_args[m].weight_decay,
+                    momentum=model_args[m].sgd_momentum,
+                )
 
     def forward(
         self, data: Dict[str, torch.Tensor], **kwargs

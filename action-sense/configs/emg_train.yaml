@@ -5,8 +5,7 @@ modality: ["EMG"] # modality used
 train:
   num_clips: 1
   dense_sampling: 
-    EMGl: True
-    EMGr: True
+    EMG: True
   num_frames_per_clip: 
     EMG: 100
   stride:
@@ -15,15 +14,14 @@ train:
 test:
   num_clips: 5
   dense_sampling: 
-    EMGl: True
-    EMGr: True
+    EMG: True
   num_frames_per_clip: 
     EMG: 100
   stride:
     EMG: 1
 
 dataset:
-  annotations_path: data/ActionNet # path for the annotations data
+  annotations_path: data/final # path for the annotations data
   workers: 4 # number of workers for the dataloader
   resolution: 224 # input resolution to the model
   RGB:
@@ -49,7 +47,7 @@ models:
     resolution: 224
     kwargs: {}
     lr_steps: 3000
-    lr: 0.01
+    lr: 0.1
     sgd_momentum: 0.9
     weight_decay: 1e-7
     fs: 160

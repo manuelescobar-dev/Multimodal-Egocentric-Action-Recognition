@@ -21,8 +21,6 @@ class ActionSenseDataset(data.Dataset, ABC):
         num_clips,
         transform=None,
         load_feat=False,
-        filtered=True,
-        augmented=True,
         additional_info=False,
         **kwargs,
     ):
@@ -51,20 +49,13 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.additional_info = additional_info
         self.transform = transform  # pipeline of transforms
         self.load_feat = load_feat
-        self.filtered = filtered
         self.mode_config = mode_config
         self.num_clips = num_clips
 
-        if len(self.modalities) > 1:
-            pickle_name = f"{self.mode}_multimodal"
+        if len(self.modalities) > 1 or self.modalities[0] == "RGB":
+            pickle_name = f"{self.mode}_MULTIMODAL"
         else:
             pickle_name = f"{self.mode}_{self.modalities[0]}"
-
-        if not augmented:
-            if self.filtered:
-                pickle_name += "_filtered"
-        else:
-            pickle_name += "_augmented"
 
         pickle_name += ".pkl"
 
@@ -133,7 +124,9 @@ class ActionSenseDataset(data.Dataset, ABC):
             if m == "EMG":
                 item[m], label = self._getEMG(index)
             else:
-                item[m], label = self._get_RGB(index)
+                items, label = self._get_RGB(index)
+                for m in self.modalities:
+                    item[m] = items[m]
         return item, label
 
     def _get_train_indices(self, modality, record: ActionRecord, side=None):
@@ -251,7 +244,7 @@ class ActionSenseDataset(data.Dataset, ABC):
         # record is a row of the pkl file containing one sample/action
         # notice that it is already converted into a EpicVideoRecord object so that here you can access
         # all the properties of the sample easily
-        record= self.record_list[index]
+        record = self.record_list[index]
 
         if self.load_feat:
             sample = {}
@@ -266,20 +259,25 @@ class ActionSenseDataset(data.Dataset, ABC):
             else:
                 return sample, record.label
 
-        if self.mode == "train":
-            # here the training indexes are obtained with some randomization
-            segment_indices = self._get_train_indices("RGB", record)
-        else:
-            # here the testing indexes are obtained with no randomization, i.e., centered
-            segment_indices = self._get_val_indices("RGB", record)
+        segment_indices = {}
+        # notice that all indexes are sampled in the[0, sample_{num_frames}] range, then the start_index of the sample
+        # is added as an offset
+        for modality in self.modalities:
+            if self.mode == "train":
+                # here the training indexes are obtained with some randomization
+                segment_indices[modality] = self._get_train_indices(modality, record)
+            else:
+                # here the testing indexes are obtained with no randomization, i.e., centered
+                segment_indices[modality] = self._get_val_indices(modality, record)
 
-        img = self.get(m, record, segment_indices)
-        frames = img
+        for m in self.modalities:
+            img, label = self.get(m, record, segment_indices[m])
+            frames[m] = img
 
         if self.additional_info:
-            return frames, record.untrimmed_video_name, record.uid
+            return frames, label, record.untrimmed_video_name, record.uid
         else:
-            return frames
+            return frames, label
 
     def get(self, modality, record, indices):
         images = list()
@@ -295,10 +293,11 @@ class ActionSenseDataset(data.Dataset, ABC):
     def _load_image(self, modality, record: ActionRecord, idx):
         data_path = self.dataset_conf[modality].data_path
         tmpl = self.dataset_conf[modality].tmpl
+        
 
         if modality == "RGB" or modality == "RGBDiff":
             # here the offset for the starting index of the sample is added
-            idx_untrimmed = record.start_frame + idx
+            idx_untrimmed = record.start_frame[modality] + idx
             try:
                 img = Image.open(
                     os.path.join(
@@ -309,8 +308,10 @@ class ActionSenseDataset(data.Dataset, ABC):
             except FileNotFoundError:
                 print(
                     "Img not found:",
-                    idx_untrimmed,
-                    tmpl.format(idx_untrimmed),
+                    os.path.join(
+                        data_path,
+                        tmpl.format(idx_untrimmed),
+                    ),
                 )
                 max_idx_video = int(
                     sorted(

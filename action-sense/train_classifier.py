@@ -12,7 +12,7 @@ import models as model_list
 import tasks
 import wandb
 from utils.torch_device import get_device
-
+from utils.utils import get_num_classes
 
 # global variables among training functions
 training_iterations = 0
@@ -46,7 +46,8 @@ def main():
     modalities = args.modality
 
     # recover valid paths, domains, classes
-    num_classes = 20
+    num_classes = get_num_classes(modalities)
+    logger.info("Number of classes: {}".format(num_classes))
     # device where everything is run
     device = torch.device("cpu")
     logger.info("Device: {}".format(device))

@@ -25,6 +25,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         total_batch: int,
         models_dir: str,
         args,
+        save=False,
         **kwargs,
     ) -> None:
         """Create an instance of the Task class.
@@ -49,6 +50,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         self.batch_size = batch_size
         self.total_batch = total_batch
         self.models_dir = models_dir
+        self.save=save
 
         # Number of training iterations
         self.current_iter = 0
@@ -100,7 +102,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         """
         logger.info("Restoring {} for modality {} from {}".format(self.name, m, path))
 
-        if torch.cuda.is_available() or torch.__version__ >= "2.0.0":
+        if torch.cuda.is_available():
             try:
                 checkpoint = torch.load(path)
             except:
@@ -154,15 +156,17 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         self.best_iter = checkpoint["best_iter"]
         self.best_iter_score = checkpoint["best_iter_score"]
         self.last_iter_acc = checkpoint["acc_mean"]
-
+        if self.save:
+            del checkpoint["model_state_dict"]["module.base_model.logits.conv3d.weight"]
+            del checkpoint["model_state_dict"]["module.base_model.logits.conv3d.bias"]
         # Restore the model parameters
         self.task_models[m].load_state_dict(checkpoint["model_state_dict"], strict=True)
-        # Restore the optimizer parameters
-        self.optimizer[m].load_state_dict(checkpoint["optimizer_state_dict"])
+        if not self.save:
+            # Restore the optimizer parameters
+            self.optimizer[m].load_state_dict(checkpoint["optimizer_state_dict"])
 
         try:
             self.model_count = checkpoint["last_model_count_saved"]
-            self.model_count = self.model_count + 1 if self.model_count < 9 else 1
         except KeyError:
             # for compatibility with models saved before refactoring
             self.model_count = 1

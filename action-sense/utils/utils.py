@@ -1,15 +1,28 @@
 from collections.abc import Mapping
 import torch
+import pandas as pd
+import os
 
+def get_num_classes(modalities):
+    # Find the number of classes in the train and test set
+    if len(modalities) > 1 or modalities[0] == "RGB":
+        pickle_name = "MULTIMODAL"
+    else:
+        pickle_name = modalities[0]
 
-def get_domains_and_labels(args):
-    num_verbs = 8
-    domains = {"D1": 8, "D2": 1, "D3": 22}
-    source_domain = domains[args.dataset.shift.split("-")[0]]
-    target_domain = domains[args.dataset.shift.split("-")[1]]
-    valid_labels = [i for i in range(num_verbs)]
-    num_class = num_verbs
-    return num_class, valid_labels, source_domain, target_domain
+    pickle_name += ".pkl"
+    
+    with open(os.path.join(f"data/final/train_{pickle_name}"), "rb") as f:
+        train_data = pd.read_pickle(f)
+        
+    with open(os.path.join(f"data/final/test_{pickle_name}"), "rb") as f:
+        test_data = pd.read_pickle(f)
+    
+    train_classes = train_data["label"].unique().tolist()
+    test_classes = test_data["label"].unique().tolist()
+    total_classes = set(train_classes + test_classes)
+    return len(total_classes)
+    
 
 
 class Accuracy(object):

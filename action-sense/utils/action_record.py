@@ -25,7 +25,7 @@ class ActionRecord(VideoRecord):
     @property
     def start_frame(self):
         return {
-            "RGB": self._data["start"],
+            "RGB": self._data["start_frame"],
             "EMG_left": self.myo_left_timestamps[0],
             "EMG_right": self.myo_right_timestamps[0],
         }
@@ -33,7 +33,7 @@ class ActionRecord(VideoRecord):
     @property
     def end_frame(self):
         return {
-            "RGB": self._data["stop"],
+            "RGB": self._data["stop_frame"],
             "EMG_left": self.myo_left_timestamps[-1],
             "EMG_right": self.myo_right_timestamps[-1],
         }

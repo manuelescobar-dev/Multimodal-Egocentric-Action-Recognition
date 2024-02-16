@@ -50,9 +50,9 @@ args.experiment_dir = os.path.join(args.name, datetime.now().strftime("%b%d_%H-%
 if args.action != "train":
     args.log_dir = os.path.join("TEST_RESULTS", args.name)
     if args.logname is None:
-        args.logname = args.action + "_" + args.dataset.shift + ".log"
+        args.logname = args.action + "_" + str(args.modality) + ".log"
     else:
-        args.logname = args.logname + "_" + args.dataset.shift + ".log"
+        args.logname = args.logname + "_" + str(args.modality) + ".log"
     args.logfile = os.path.join(args.log_dir, args.logname)
 else:
     args.log_dir = os.path.join("Experiment_logs", args.experiment_dir)

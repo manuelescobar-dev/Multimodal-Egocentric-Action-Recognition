@@ -1,23 +1,24 @@
-action: save # train, test, or save
+action: save # train or test
 name: saved_feat_I3D
-split: ???
-resume_from: ./saved_models/I3D_SourceOnlyD1
+split: train
 
 save:
-  num_clips: 5
+  num_clips: 1
   dense_sampling:
-    RGB: ???
+    RGB: True
   num_frames_per_clip:
-    RGB: ???
+    RGB: 16
+  stride:
+    RGB: 2
+
 
 dataset:
-  annotations_path: train_val
+  annotations_path: data/final
   workers: 4
-  stride: 2
   resolution: 224
   RGB:
-    data_path: ???
-    tmpl: "img_{:010d}.jpg"
+    data_path: data/frames
+    tmpl: "frame_{:010d}.jpg"
   Event:
     rgb4e: 6
 
