@@ -116,6 +116,8 @@ class ActionSenseDataset(data.Dataset, ABC):
                     item[m] = items[m]
         if self.additional_info:
             return item, label, index
+        else:
+            return item, label
 
     def _get_train_indices(self, modality, record: ActionRecord, side=None):
         if side is not None:
@@ -260,10 +262,7 @@ class ActionSenseDataset(data.Dataset, ABC):
             img, label = self.get(m, record, segment_indices[m])
             frames[m] = img
 
-        if self.additional_info:
-            return frames, label, record.untrimmed_video_name, record.uid
-        else:
-            return frames, label
+        return frames, label
 
     def get(self, modality, record, indices):
         images = list()
