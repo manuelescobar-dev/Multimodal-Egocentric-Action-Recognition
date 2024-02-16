@@ -124,6 +124,7 @@ def save_feat(model, loader, device, it, num_classes):
                 sample = {}
                 for m in modalities:
                     sample["features_" + m] = features[m][:, i].cpu().detach().numpy()
+                    sample["label_" + m] = label[i].cpu().detach().numpy()
                 results_dict["features"].append(sample)
             num_samples += batch
 

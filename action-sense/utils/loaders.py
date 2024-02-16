@@ -8,7 +8,6 @@ import os.path
 from utils.logger import logger
 import numpy as np
 from .action_record import ActionRecord
-from .torch_device import get_device
 
 
 class ActionSenseDataset(data.Dataset, ABC):
@@ -73,27 +72,15 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.record_list=tuple(ActionRecord(info, self.dataset_conf) for info in data.iterrows())
 
         if self.load_feat:
-            self.model_features = None
-            for m in self.modalities:
-                # load features for each modality
-                model_features = pd.DataFrame(
-                    pd.read_pickle(
-                        os.path.join(
-                            "saved_features",
-                            self.dataset_conf[m].features_name + "_" + pickle_name,
-                        )
-                    )["features"]
-                )[["uid", "features_" + m]]
-                if self.model_features is None:
-                    self.model_features = model_features
-                else:
-                    self.model_features = pd.merge(
-                        self.model_features, model_features, how="inner", on="uid"
+            self.rgb_features = pd.DataFrame(
+                pd.read_pickle(
+                    os.path.join(
+                        "saved_features",
+                        pickle_name,
                     )
-
-            self.model_features = pd.merge(
-                self.model_features, self.list_file, how="inner", on="uid"
+                )["features"]
             )
+            print(self.rgb_features)
 
     def _getEMG(self, index):
         record= self.record_list[index]
