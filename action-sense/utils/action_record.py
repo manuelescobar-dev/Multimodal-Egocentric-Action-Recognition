@@ -26,25 +26,25 @@ class ActionRecord(VideoRecord):
     def start_frame(self):
         return {
             "RGB": self._data["start"],
-            "EMGl": self.myo_left_timestamps[0],
-            "EMGr": self.myo_right_timestamps[0],
+            "EMG_left": self.myo_left_timestamps[0],
+            "EMG_right": self.myo_right_timestamps[0],
         }
 
     @property
     def end_frame(self):
         return {
             "RGB": self._data["stop"],
-            "EMGl": self.myo_left_timestamps[-1],
-            "EMGr": self.myo_right_timestamps[-1],
+            "EMG_left": self.myo_left_timestamps[-1],
+            "EMG_right": self.myo_right_timestamps[-1],
         }
 
-    @property
-    def num_frames(self):
-        return {
+    def num_frames(self, submodality):
+        frames = {
             "RGB": self.end_frame["RGB"] - self.start_frame["RGB"],
-            "EMGl": len(self.myo_left_timestamps),
-            "EMGr": len(self.myo_right_timestamps),
+            "EMG_left": len(self.myo_left_timestamps),
+            "EMG_right": len(self.myo_right_timestamps),
         }
+        return frames[submodality]
 
     @property
     def label(self):

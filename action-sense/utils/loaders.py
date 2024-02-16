@@ -8,6 +8,7 @@ import os.path
 from utils.logger import logger
 import numpy as np
 from .action_record import ActionRecord
+from .torch_device import get_device
 
 
 class ActionSenseDataset(data.Dataset, ABC):
@@ -17,9 +18,11 @@ class ActionSenseDataset(data.Dataset, ABC):
         mode,
         dataset_conf,
         mode_config,
+        num_clips,
         transform=None,
         load_feat=False,
         filtered=True,
+        augmented=True,
         additional_info=False,
         **kwargs,
     ):
@@ -50,14 +53,18 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.load_feat = load_feat
         self.filtered = filtered
         self.mode_config = mode_config
+        self.num_clips = num_clips
 
         if len(self.modalities) > 1:
-            pickle_name = f"ActionNet_{self.mode}_multimodal"
+            pickle_name = f"{self.mode}_multimodal"
         else:
-            pickle_name = f"ActionNet_{self.mode}_{self.modalities[0]}"
+            pickle_name = f"{self.mode}_{self.modalities[0]}"
 
-        if self.filtered:
-            pickle_name += "_filtered"
+        if not augmented:
+            if self.filtered:
+                pickle_name += "_filtered"
+        else:
+            pickle_name += "_augmented"
 
         pickle_name += ".pkl"
 
@@ -66,11 +73,13 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.data_path = os.path.join(
             self.dataset_conf["annotations_path"], pickle_name
         )
-        self.data = pd.read_pickle(self.data_path)
+        
+        data = pd.read_pickle(self.data_path)
 
-        self.record_list = [
-            ActionRecord(info, self.dataset_conf) for info in self.data.iterrows()
-        ]
+        """ record_list = [
+            ActionRecord(info, self.dataset_conf) for info in data.iterrows()
+        ] """
+        self.record_list=tuple(ActionRecord(info, self.dataset_conf) for info in data.iterrows())
 
         if self.load_feat:
             self.model_features = None
@@ -95,39 +104,44 @@ class ActionSenseDataset(data.Dataset, ABC):
                 self.model_features, self.list_file, how="inner", on="uid"
             )
 
-    def _getEMG(self, record):
-        sides = ["l", "r"]
+    def _getEMG(self, index):
+        record= self.record_list[index]
+        sides = ["left", "right"]
         emgs = []
         for s in sides:
-            modality = "EMG" + s
+            modality = "EMG"
             if self.mode == "train":
                 # here the training indexes are obtained with some randomization
-                segment_indices = self._get_train_indices(modality, record)
+                segment_indices = self._get_train_indices(modality, record, side=s)
             else:
                 # here the testing indexes are obtained with no randomization, i.e., centered
-                segment_indices = self._get_val_indices(modality, record)
-            if s == "l":
+                segment_indices = self._get_val_indices(modality, record, side=s)
+            if s == "left":
                 emg = record.myo_left_readings
             else:
                 emg = record.myo_right_readings
             emg = emg[segment_indices, :]
             emgs.append(emg)
         # Concatenate along the second axis to create a 100x16 array
-        result = np.concatenate((emgs[0], emgs[1]), axis=1, dtype=np.float32)
+        result = np.concatenate((emgs[0],emgs[1]), axis=1, dtype=np.float32)
         result = self.transform["EMG"](result)
-        return result
+        return result, record.label
 
     def __getitem__(self, index):
-        record = self.record_list[index]
         item = {}
         for m in self.modalities:
             if m == "EMG":
-                item[m] = self._getEMG(record)
+                item[m], label = self._getEMG(index)
             else:
-                item[m] = self._get_RGB(record)
-        return item, record.label
+                item[m], label = self._get_RGB(index)
+        return item, label
 
-    def _get_train_indices(self, modality, record: ActionRecord):
+    def _get_train_indices(self, modality, record: ActionRecord, side=None):
+        if side is not None:
+            submodality = modality + "_" + side
+        else:
+            submodality = modality
+        
         def random_offset(highest_idx):
             if highest_idx == 0:
                 offset = 0
@@ -141,18 +155,18 @@ class ActionSenseDataset(data.Dataset, ABC):
             # Finds the highest possible index
             highest_idx = max(
                 0,
-                record.num_frames[modality]
+                record.num_frames(submodality)
                 - (self.mode_config.stride[modality])
                 * self.mode_config.num_frames_per_clip[modality],
             )
             # Selects one random initial frame for each clip
-            for _ in range(self.mode_config.num_clips[modality]):
+            for _ in range(self.num_clips):
                 # Selects a random offset between 0 and the highest possible index
                 offset = random_offset(highest_idx)
                 # Selects the frames for the clip
                 frames = [
                     (offset + self.mode_config.stride[modality] * x)
-                    % (record.num_frames[modality] - 1)
+                    % (record.num_frames(submodality) - 1)
                     for x in range(self.mode_config.num_frames_per_clip[modality])
                 ]
                 # Appends the frames to the clips list
@@ -161,10 +175,10 @@ class ActionSenseDataset(data.Dataset, ABC):
         else:
             # Frames available for each clip
             clip_frames = max(
-                record.num_frames[modality] // self.mode_config.num_clips[modality],
+                record.num_frames(submodality) // self.num_clips,
                 self.mode_config.num_frames_per_clip[modality],
             )
-            highest_idx = max(0, record.num_frames[modality] - clip_frames)
+            highest_idx = max(0, record.num_frames(submodality) - clip_frames)
             for _ in range(self.mode_config):
                 # Selects a random offset between 0 and the highest possible index
                 offset = random_offset(highest_idx)
@@ -179,12 +193,17 @@ class ActionSenseDataset(data.Dataset, ABC):
         frame_idx = np.asarray(frame_idx)
         return frame_idx
 
-    def _get_val_indices(self, modality, record: ActionRecord):
+    def _get_val_indices(self, modality, record: ActionRecord, side = None):
+        if side is not None:
+            submodality = modality + "_" + side
+        else:
+            submodality = modality
+        
         frame_idx = []
         # Dense sampling
-        if self.dense_sampling:
+        if self.mode_config.dense_sampling[modality]:
             # Number of frames in each half of the clip
-            clip_frames = record.num_frames[modality] // self.mode_config // 2
+            clip_frames = record.num_frames(submodality) // self.num_clips // 2
             # Space between first and last frame taken from each clip
             tot_frames = (
                 self.mode_config.num_frames_per_clip[modality]
@@ -194,23 +213,23 @@ class ActionSenseDataset(data.Dataset, ABC):
                 # Selects evenly spaced center points for each clip
                 center_points = np.linspace(
                     clip_frames,
-                    record.num_frames[modality] - clip_frames,
-                    self.mode_config,
+                    record.num_frames(submodality) - clip_frames,
+                    self.num_clips,
                     dtype=int,
                 )
             else:
                 # Some segments overlap
                 center_points = np.linspace(
                     tot_frames // 2,
-                    record.num_frames[modality] - tot_frames // 2,
-                    self.mode_config,
+                    record.num_frames(submodality) - tot_frames // 2,
+                    self.num_clips,
                     dtype=int,
                 )
             # Selects the frames for each clip
             for center in center_points:
                 frames = [
-                    (center - tot_frames // 2 + self.dataset_conf.stride * x)
-                    % (record.num_frames[modality] - 1)
+                    (center - tot_frames // 2 + self.mode_config.stride[modality] * x)
+                    % (record.num_frames(submodality) - 1)
                     for x in range(self.mode_config.num_frames_per_clip[modality])
                 ]
                 frame_idx.extend(frames)
@@ -218,20 +237,21 @@ class ActionSenseDataset(data.Dataset, ABC):
         else:
             frame_idx = np.linspace(
                 0,
-                record.num_frames[modality] - 1,
+                record.num_frames(submodality) - 1,
                 self.mode_config.num_frames_per_clip[modality]
-                * self.mode_config.num_clips[modality],
+                * self.num_clips,
                 dtype=int,
             )
         return np.asarray(frame_idx)
 
-    def _get_RGB(self, record):
+    def _get_RGB(self, index):
 
         frames = {}
         label = None
         # record is a row of the pkl file containing one sample/action
         # notice that it is already converted into a EpicVideoRecord object so that here you can access
         # all the properties of the sample easily
+        record= self.record_list[index]
 
         if self.load_feat:
             sample = {}
@@ -270,7 +290,7 @@ class ActionSenseDataset(data.Dataset, ABC):
             images.extend(frame)
         # finally, all the transformations are applied
         process_data = self.transform[modality](images)
-        return process_data
+        return process_data, record.label
 
     def _load_image(self, modality, record: ActionRecord, idx):
         data_path = self.dataset_conf[modality].data_path
@@ -319,4 +339,4 @@ class ActionSenseDataset(data.Dataset, ABC):
             raise NotImplementedError("Modality not implemented")
 
     def __len__(self):
-        return len(self.data)
+        return len(self.record_list)

@@ -53,7 +53,6 @@ def main():
 
     # these dictionaries are for more multi-modal training/testing, each key is a modality used
     models = {}
-    logger.info("Instantiating models per modality")
     train_transforms = {}
     test_transforms = {}
     logger.info("Instantiating models per modality")
@@ -95,6 +94,7 @@ def main():
                 "train",
                 args.dataset,
                 args.train,
+                args.train.num_clips,
                 transform=transformations["train"],
                 load_feat=args.load_feat,
             ),
@@ -111,6 +111,7 @@ def main():
                 "test",
                 args.dataset,
                 args.test,
+                args.test.num_clips,
                 transform=transformations["test"],
                 load_feat=args.load_feat,
             ),
@@ -131,6 +132,7 @@ def main():
                 "test",
                 args.dataset,
                 args.test,
+                args.test.num_clips,
                 transform=transformations["test"],
                 load_feat=args.load_feat,
             ),
@@ -201,21 +203,24 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
         """ Action recognition"""
         source_label = source_label.to(device)
 
-        data = {}
-
+        
         for m in modalities:
-            batch, _, _ = source_data[m].shape
-            data[m] = source_data[m].reshape(
+            batch = source_data[m].shape[0]
+            source_data[m] = source_data[m].reshape(
                 batch,
-                args.train.num_clips[m],
+                args.train.num_clips,
                 args.train.num_frames_per_clip[m],
                 -1,
             )
-            d = {}
-            for clip in range(args.train.num_clips[m]):
+            source_data[m] = source_data[m].permute(1, 0, 2, 3)
+
+        data = {}
+        for clip in range(args.train.num_clips):
                 # in case of multi-clip training one clip per time is processed
-                d[m] = data[m][:, clip].to(device)
-                logits, _ = action_classifier.forward(d)
+                for m in modalities:
+                    data[m] = source_data[m][clip].to(device)
+
+                logits, _ = action_classifier.forward(data)
                 action_classifier.compute_loss(logits, source_label, loss_weight=1)
                 action_classifier.backward(retain_graph=False)
                 action_classifier.compute_accuracy(logits, source_label)
@@ -285,7 +290,14 @@ def validate(model, val_loader, device, it, num_classes):
                 logits[m] = torch.zeros((args.test.num_clips, batch, num_classes)).to(
                     device
                 )
+                data[m] = data[m].reshape(
+                    batch,
+                    args.test.num_clips,
+                    args.test.num_frames_per_clip[m],
+                    -1,
+                )
 
+            
             clip = {}
             for i_c in range(args.test.num_clips):
                 for m in modalities:
@@ -311,7 +323,7 @@ def validate(model, val_loader, device, it, num_classes):
                 )
 
         class_accuracies = [
-            (x / y) * 100 for x, y in zip(model.accuracy.correct, model.accuracy.total)
+            (x / y) * 100 for x, y in zip(model.accuracy.correct, model.accuracy.total) if y != 0
         ]
         logger.info(
             "Final accuracy: top1 = %.2f%%\ttop5 = %.2f%%"
@@ -342,8 +354,8 @@ def validate(model, val_loader, device, it, num_classes):
     with open(
         os.path.join(
             args.log_dir,
-            f'val_precision_{args.dataset.shift.split("-")[0]}-'
-            f'{args.dataset.shift.split("-")[-1]}.txt',
+            f'val_precision_{str(args.modality)}-'
+            f'{str(args.modality)}.txt',
         ),
         "a+",
     ) as f:

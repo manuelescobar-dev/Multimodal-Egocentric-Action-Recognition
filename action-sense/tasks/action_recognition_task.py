@@ -113,7 +113,6 @@ class ActionRecognition(tasks.Task, ABC):
         logits: Dict[str, torch.Tensor],
         label: torch.Tensor,
         loss_weight: float = 1.0,
-        num_clips=1.0,
     ):
         """Fuse the logits from different modalities and compute the classification loss.
 
@@ -127,7 +126,7 @@ class ActionRecognition(tasks.Task, ABC):
             weight of the classification loss, by default 1.0
         """
         fused_logits = reduce(lambda x, y: x + y, logits.values())
-        loss = self.criterion(fused_logits, label) / num_clips
+        loss = self.criterion(fused_logits, label) / self.num_clips
         # Update the loss value, weighting it by the ratio of the batch size to the total
         # batch size (for gradient accumulation)
         self.loss.update(
