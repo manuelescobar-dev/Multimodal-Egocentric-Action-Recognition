@@ -8,44 +8,58 @@ wandb_name: null # needed for wandb logging
 resume_from: null # checkpoint directory
 logname: null # name of the logs
 models_dir: null # directory containing all the models
+load_feat: False
 
 train:
   num_iter: 5000 # number of training iterations with total_batch size
   lr_steps: 3000 # steps before reducing learning rate
   eval_freq: 50 # evaluation frequency
-  num_clips: 1 # clips adopted in training
+  num_clips:
+    RGB: 1
+    EMG: 1
   dense_sampling: # sampling version adopted in training for each modality
     RGB: True
+    EMG: True
   num_frames_per_clip: # number of frames adopted in training for each modality
     RGB: 16
+    EMG: 100
+  stride:
+    RGB: 1
+    EMG: 1
 
 test:
-  num_clips: 5 # number of clips in testing
+  num_clips:
+    RGB: 5
+    EMG: 1
   dense_sampling: # sampling version adopted in test for each modality
     RGB: True
+    EMG: True
   num_frames_per_clip: # number of frames adopted in test for each modality
     RGB: 16
+    EMG: 100
+  stride:
+    RGB: 1
+    EMG: 1
 
 dataset:
-  annotations_path: train_val # path for the annotations data
-  shift: ??? # shifts of the dataset
+  annotations_path: ??? # path for the annotations data
   workers: 4 # number of workers for the dataloader
-  stride: 2 # stride in case of dense sampling
   resolution: 224 # input resolution to the model
   RGB:
     data_path: ??? # path to RGB data
-    tmpl: "img_{:010d}.jpg" # format of RGB filenames
+    tmpl: "frames_{:010d}.jpg" # format of RGB filenames
     features_name: test_feat_kinetics
-  Event: # not neeeded for the project
-    rgb4e: 6
 
 # these are the action recognition models for each modality
 models:
   RGB:
-    model: Classifier
+    model: I3D
+    dropout: 0.5
     normalize: False
+    resolution: 224
     kwargs: {}
     lr_steps: 3000
     lr: 0.01
     sgd_momentum: 0.9
     weight_decay: 1e-7
+    weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'

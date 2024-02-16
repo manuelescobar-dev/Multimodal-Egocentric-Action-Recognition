@@ -2,40 +2,50 @@ from .video_record import VideoRecord
 
 
 class ActionRecord(VideoRecord):
-    def __init__(self, tup, dataset_conf):
-        self._index = str(tup[0])
-        self._series = tup[1]
+    def __init__(self, data, dataset_conf):
+        self._data = data[1]
         self.dataset_conf = dataset_conf
 
     @property
-    def index(self):
-        return self._index
+    def myo_left_timestamps(self):
+        return self._data["myo_left_timestamps"]
 
     @property
-    def file(self):
-        return self._series['file']
+    def myo_right_timestamps(self):
+        return self._data["myo_right_timestamps"]
 
     @property
-    def start_time(self):
-        return self._series[
-    
+    def myo_left_readings(self):
+        return self._data["myo_left_readings"]
+
+    @property
+    def myo_right_readings(self):
+        return self._data["myo_right_readings"]
+
     @property
     def start_frame(self):
-        return self._series['start_frame'] - 1
+        return {
+            "RGB": self._data["start"],
+            "EMGl": self.myo_left_timestamps[0],
+            "EMGr": self.myo_right_timestamps[0],
+        }
 
     @property
     def end_frame(self):
-        return self._series['stop_frame'] - 2
+        return {
+            "RGB": self._data["stop"],
+            "EMGl": self.myo_left_timestamps[-1],
+            "EMGr": self.myo_right_timestamps[-1],
+        }
 
     @property
     def num_frames(self):
-        return {'RGB': self.end_frame - self.start_frame,
-                'Flow': int((self.end_frame - self.start_frame) / 2),
-                'Event': int((self.end_frame - self.start_frame) / self.dataset_conf["Event"].rgb4e),
-                'Spec': self.end_frame - self.start_frame}
+        return {
+            "RGB": self.end_frame["RGB"] - self.start_frame["RGB"],
+            "EMGl": len(self.myo_left_timestamps),
+            "EMGr": len(self.myo_right_timestamps),
+        }
 
     @property
     def label(self):
-        if 'verb_class' not in self._series.keys().tolist():
-            raise NotImplementedError
-        return self._series['verb_class']
+        return self._data["label"]

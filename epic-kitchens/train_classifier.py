@@ -14,7 +14,6 @@ import models as model_list
 import tasks
 import wandb
 from utils.torch_device import get_device
-import gc
 
 
 # global variables among training functions

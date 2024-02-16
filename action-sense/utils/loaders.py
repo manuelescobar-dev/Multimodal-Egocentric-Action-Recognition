@@ -1,37 +1,42 @@
 import glob
 from abc import ABC
 import pandas as pd
-from action_record import ActionRecord
 import torch.utils.data as data
 from PIL import Image
 import os
 import os.path
 from utils.logger import logger
 import numpy as np
+from .action_record import ActionRecord
 
 
 class ActionSenseDataset(data.Dataset, ABC):
     def __init__(
         self,
-        split,
         modalities,
         mode,
         dataset_conf,
+        mode_config,
         transform=None,
+        load_feat=False,
+        filtered=True,
         additional_info=False,
         **kwargs,
     ):
         """
-        split: str (S04, S05, ...)
         modalities: list(str, str, ...)
         mode: str (train, test/val)
         dataset_conf must contain the following:
             - annotations_path: str
+            - stride: int
         dataset_conf[modality] for the modalities used must contain:
             - data_path: str
             - tmpl: str
             - features_name: str (in case you are loading features for a predefined modality)
             - (Event only) rgb4e: int
+        num_frames_per_clip: dict(modality: int)
+        num_clips: int
+        dense_sampling: dict(modality: bool)
         additional_info: bool, set to True if you want to receive also the uid and the video name from the get function
             notice, this may be useful to do some proper visualizations!
         """
@@ -41,67 +46,88 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.mode = mode  # 'train', 'val' or 'test'
         self.dataset_conf = dataset_conf
         self.additional_info = additional_info
-
-        if self.mode == "train":
-            pickle_name =  "ActionNet_train.pkl"
-        else:
-            pickle_name = "ActionNet__test.pkl"
-
-        self.data = pd.read_pickle(
-            os.path.join(self.dataset_conf.annotations_path, pickle_name)
-        )
-        logger.info(
-            f"Dataloader for ActionNet_{self.mode} with {len(self.list_file)} samples generated"
-        )
         self.transform = transform  # pipeline of transforms
-        
-        for record in self.data:
-            # Join on index
-            
-            
+        self.load_feat = load_feat
+        self.filtered = filtered
+        self.mode_config = mode_config
 
-    def record_indices(self, record: EpicVideoRecord, modality, random_offset=True):
-        def get_offset(highest_idx, i):
-            if random_offset:
-                if highest_idx == 0:
-                    offset = 0
+        if len(self.modalities) > 1:
+            pickle_name = f"ActionNet_{self.mode}_multimodal"
+        else:
+            pickle_name = f"ActionNet_{self.mode}_{self.modalities[0]}"
+
+        if self.filtered:
+            pickle_name += "_filtered"
+
+        pickle_name += ".pkl"
+
+        logger.info(f"Loading data from {pickle_name}.")
+
+        self.data_path = os.path.join(
+            self.dataset_conf["annotations_path"], pickle_name
+        )
+        self.data = pd.read_pickle(self.data_path)
+
+        self.record_list = [
+            ActionRecord(info, self.dataset_conf) for info in self.data.iterrows()
+        ]
+
+        if self.load_feat:
+            self.model_features = None
+            for m in self.modalities:
+                # load features for each modality
+                model_features = pd.DataFrame(
+                    pd.read_pickle(
+                        os.path.join(
+                            "saved_features",
+                            self.dataset_conf[m].features_name + "_" + pickle_name,
+                        )
+                    )["features"]
+                )[["uid", "features_" + m]]
+                if self.model_features is None:
+                    self.model_features = model_features
                 else:
-                    offset = np.random.randint(0, highest_idx)
+                    self.model_features = pd.merge(
+                        self.model_features, model_features, how="inner", on="uid"
+                    )
+
+            self.model_features = pd.merge(
+                self.model_features, self.list_file, how="inner", on="uid"
+            )
+
+    def _getEMG(self, record):
+        sides = ["l", "r"]
+        emgs = []
+        for s in sides:
+            modality = "EMG" + s
+            if self.mode == "train":
+                # here the training indexes are obtained with some randomization
+                segment_indices = self._get_train_indices(modality, record)
             else:
-                offset = i * ((record.num_frames[modality] - 1) // self.num_clips)
-            return offset
+                # here the testing indexes are obtained with no randomization, i.e., centered
+                segment_indices = self._get_val_indices(modality, record)
+            if s == "l":
+                emg = record.myo_left_readings
+            else:
+                emg = record.myo_right_readings
+            emg = emg[segment_indices, :]
+            emgs.append(emg)
+        # Concatenate along the second axis to create a 100x16 array
+        result = np.concatenate((emgs[0], emgs[1]), axis=1, dtype=np.float32)
+        result = self.transform["EMG"](result)
+        return result
 
-        if self.dense_sampling:
-            frame_idx = []
-            highest_idx = max(
-                0,
-                record.num_frames[modality]
-                - self.stride * self.num_frames_per_clip[modality]
-                - 1,
-            )
-            for i in range(self.num_clips):
-                offset = get_offset(highest_idx, i)
-                clip_idx = [
-                    (offset + self.stride * x) % (record.num_frames[modality] - 1)
-                    for x in range(self.num_frames_per_clip[modality])
-                ]
-                frame_idx.extend(clip_idx)
-        else:  # uniform sampling
-            frame_idx = []
-            highest_idx = max(
-                0, record.num_frames[modality] - self.num_frames_per_clip[modality] - 1
-            )
-            for _ in range(self.num_clips):
-                offset = get_offset(highest_idx, i)
-                clip_idx = [
-                    (offset + x) % (record.num_frames[modality] - 1)
-                    for x in range(self.num_frames_per_clip[modality])
-                ]
-                frame_idx.extend(clip_idx)
-        frame_idx = np.asarray(frame_idx)
-        return frame_idx
+    def __getitem__(self, index):
+        record = self.record_list[index]
+        item = {}
+        for m in self.modalities:
+            if m == "EMG":
+                item[m] = self._getEMG(record)
+            else:
+                item[m] = self._get_RGB(record)
+        return item, record.label
 
-    def _get_train_indices(self, record: EpicVideoRecord, modality="RGB"):
+    def _get_train_indices(self, modality, record: ActionRecord):
         def random_offset(highest_idx):
             if highest_idx == 0:
                 offset = 0
@@ -111,21 +137,23 @@ class ActionSenseDataset(data.Dataset, ABC):
 
         frame_idx = []
         # Dense sampling
-        if self.dense_sampling:
+        if self.mode_config.dense_sampling[modality]:
             # Finds the highest possible index
             highest_idx = max(
                 0,
                 record.num_frames[modality]
-                - (self.stride) * self.num_frames_per_clip[modality],
+                - (self.mode_config.stride[modality])
+                * self.mode_config.num_frames_per_clip[modality],
             )
             # Selects one random initial frame for each clip
-            for _ in range(self.num_clips):
+            for _ in range(self.mode_config.num_clips[modality]):
                 # Selects a random offset between 0 and the highest possible index
                 offset = random_offset(highest_idx)
                 # Selects the frames for the clip
                 frames = [
-                    (offset + self.stride * x) % (record.num_frames[modality] - 1)
-                    for x in range(self.num_frames_per_clip[modality])
+                    (offset + self.mode_config.stride[modality] * x)
+                    % (record.num_frames[modality] - 1)
+                    for x in range(self.mode_config.num_frames_per_clip[modality])
                 ]
                 # Appends the frames to the clips list
                 frame_idx.extend(frames)
@@ -133,38 +161,41 @@ class ActionSenseDataset(data.Dataset, ABC):
         else:
             # Frames available for each clip
             clip_frames = max(
-                record.num_frames[modality] // self.num_clips,
-                self.num_frames_per_clip[modality],
+                record.num_frames[modality] // self.mode_config.num_clips[modality],
+                self.mode_config.num_frames_per_clip[modality],
             )
             highest_idx = max(0, record.num_frames[modality] - clip_frames)
-            for _ in range(self.num_clips):
+            for _ in range(self.mode_config):
                 # Selects a random offset between 0 and the highest possible index
                 offset = random_offset(highest_idx)
                 # Selects K evenly spaced frames from each clip
                 frames = np.linspace(
                     offset,
                     offset + clip_frames - 1,
-                    self.num_frames_per_clip[modality],
+                    self.mode_config.num_frames_per_clip[modality],
                     dtype=int,
                 )
                 frame_idx.extend(frames)
         frame_idx = np.asarray(frame_idx)
         return frame_idx
 
-    def _get_val_indices(self, record: EpicVideoRecord, modality):
+    def _get_val_indices(self, modality, record: ActionRecord):
         frame_idx = []
         # Dense sampling
         if self.dense_sampling:
             # Number of frames in each half of the clip
-            clip_frames = record.num_frames[modality] // self.num_clips // 2
+            clip_frames = record.num_frames[modality] // self.mode_config // 2
             # Space between first and last frame taken from each clip
-            tot_frames = self.num_frames_per_clip[modality] * self.stride
+            tot_frames = (
+                self.mode_config.num_frames_per_clip[modality]
+                * self.mode_config.stride[modality]
+            )
             if tot_frames // 2 <= clip_frames:
                 # Selects evenly spaced center points for each clip
                 center_points = np.linspace(
                     clip_frames,
                     record.num_frames[modality] - clip_frames,
-                    self.num_clips,
+                    self.mode_config,
                     dtype=int,
                 )
             else:
@@ -172,15 +203,15 @@ class ActionSenseDataset(data.Dataset, ABC):
                 center_points = np.linspace(
                     tot_frames // 2,
                     record.num_frames[modality] - tot_frames // 2,
-                    self.num_clips,
+                    self.mode_config,
                     dtype=int,
                 )
             # Selects the frames for each clip
             for center in center_points:
                 frames = [
-                    (center - tot_frames // 2 + self.stride * x)
+                    (center - tot_frames // 2 + self.dataset_conf.stride * x)
                     % (record.num_frames[modality] - 1)
-                    for x in range(self.num_frames_per_clip[modality])
+                    for x in range(self.mode_config.num_frames_per_clip[modality])
                 ]
                 frame_idx.extend(frames)
         # Uniform sampling
@@ -188,19 +219,19 @@ class ActionSenseDataset(data.Dataset, ABC):
             frame_idx = np.linspace(
                 0,
                 record.num_frames[modality] - 1,
-                self.num_frames_per_clip[modality] * self.num_clips,
+                self.mode_config.num_frames_per_clip[modality]
+                * self.mode_config.num_clips[modality],
                 dtype=int,
             )
         return np.asarray(frame_idx)
 
-    def __getitem__(self, index):
+    def _get_RGB(self, record):
 
         frames = {}
         label = None
         # record is a row of the pkl file containing one sample/action
         # notice that it is already converted into a EpicVideoRecord object so that here you can access
         # all the properties of the sample easily
-        record = self.video_list[index]
 
         if self.load_feat:
             sample = {}
@@ -215,38 +246,33 @@ class ActionSenseDataset(data.Dataset, ABC):
             else:
                 return sample, record.label
 
-        segment_indices = {}
-        # notice that all indexes are sampled in the[0, sample_{num_frames}] range, then the start_index of the sample
-        # is added as an offset
-        for modality in self.modalities:
-            if self.mode == "train":
-                # here the training indexes are obtained with some randomization
-                segment_indices[modality] = self._get_train_indices(record, modality)
-            else:
-                # here the testing indexes are obtained with no randomization, i.e., centered
-                segment_indices[modality] = self._get_val_indices(record, modality)
+        if self.mode == "train":
+            # here the training indexes are obtained with some randomization
+            segment_indices = self._get_train_indices("RGB", record)
+        else:
+            # here the testing indexes are obtained with no randomization, i.e., centered
+            segment_indices = self._get_val_indices("RGB", record)
 
-        for m in self.modalities:
-            img, label = self.get(m, record, segment_indices[m])
-            frames[m] = img
+        img = self.get(m, record, segment_indices)
+        frames = img
 
         if self.additional_info:
-            return frames, label, record.untrimmed_video_name, record.uid
+            return frames, record.untrimmed_video_name, record.uid
         else:
-            return frames, label
+            return frames
 
     def get(self, modality, record, indices):
         images = list()
         for frame_index in indices:
             p = int(frame_index)
             # here the frame is loaded in memory
-            frame = self._load_data(modality, record, p)
+            frame = self._load_image(modality, record, p)
             images.extend(frame)
         # finally, all the transformations are applied
         process_data = self.transform[modality](images)
-        return process_data, record.label
+        return process_data
 
-    def _load_data(self, modality, record, idx):
+    def _load_image(self, modality, record: ActionRecord, idx):
         data_path = self.dataset_conf[modality].data_path
         tmpl = self.dataset_conf[modality].tmpl
 
@@ -257,17 +283,12 @@ class ActionSenseDataset(data.Dataset, ABC):
                 img = Image.open(
                     os.path.join(
                         data_path,
-                        record.untrimmed_video_name,
                         tmpl.format(idx_untrimmed),
                     )
                 ).convert("RGB")
             except FileNotFoundError:
                 print(
-                    "start:", record.start_frame, "end:", record.end_frame, "id:", idx
-                )
-                print(
                     "Img not found:",
-                    record.untrimmed_video_name,
                     idx_untrimmed,
                     tmpl.format(idx_untrimmed),
                 )
@@ -298,4 +319,4 @@ class ActionSenseDataset(data.Dataset, ABC):
             raise NotImplementedError("Modality not implemented")
 
     def __len__(self):
-        return len(self.video_list)
+        return len(self.data)
