@@ -106,7 +106,8 @@ class ActionSenseDataset(data.Dataset, ABC):
             emgs.append(emg)
         # Concatenate along the second axis to create a 100x16 array
         result = np.concatenate((emgs[0], emgs[1]), axis=1, dtype=np.float32)
-        result = self.transform["EMG"](result)
+        if self.transform["EMG"] is not None:
+            result = self.transform["EMG"](result)
         return result, record.label
 
     def __getitem__(self, index):
@@ -163,8 +164,9 @@ class ActionSenseDataset(data.Dataset, ABC):
                 record.num_frames(submodality) // self.num_clips,
                 self.mode_config.num_frames_per_clip[modality],
             )
+            clip_frames = min(clip_frames, record.num_frames(submodality))
             highest_idx = max(0, record.num_frames(submodality) - clip_frames)
-            for _ in range(self.mode_config):
+            for _ in range(self.num_clips):
                 # Selects a random offset between 0 and the highest possible index
                 offset = random_offset(highest_idx)
                 # Selects K evenly spaced frames from each clip
@@ -269,8 +271,9 @@ class ActionSenseDataset(data.Dataset, ABC):
             frame = self._load_image(modality, record, p)
             images.extend(frame)
         # finally, all the transformations are applied
-        process_data = self.transform[modality](images)
-        return process_data, record.label
+        if self.transform[modality] is not None:
+            images = self.transform[modality](images)
+        return images, record.label
 
     def _load_image(self, modality, record: ActionRecord, idx):
         data_path = self.dataset_conf[modality].data_path

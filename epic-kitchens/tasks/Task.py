@@ -253,6 +253,47 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             model_path = os.path.join(last_models_dir, model)
             self.__restore_checkpoint(m, model_path)
 
+    def save_best_model(
+        self, current_iter: int, last_iter_acc: float, prefix: Optional[str] = None
+    ):
+        """Save the model.
+
+        Parameters
+        ----------
+        current_iter : int
+            current iteration in which the model is going to be saved
+        last_iter_acc : float
+            accuracy reached in the last iteration
+        prefix : Optional[str], optional
+            string to be put as a prefix to filename of the model to be saved, by default None
+        """
+        for m in self.modalities:
+            # build the filename of the model
+
+            filename = self.args.name + "_" + m + "_best_model.pth"
+
+            dir_path = "best_models"
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+
+            try:
+                torch.save(
+                    {
+                        "iteration": current_iter,
+                        "best_iter": self.best_iter,
+                        "best_iter_score": self.best_iter_score,
+                        "acc_mean": last_iter_acc,
+                        "loss_mean": self.loss.acc,
+                        "model_state_dict": self.task_models[m].state_dict(),
+                        "optimizer_state_dict": self.optimizer[m].state_dict(),
+                        "last_model_count_saved": self.model_count,
+                    },
+                    os.path.join(dir_path, filename),
+                )
+            except Exception as e:
+                logger.error("An error occurred while saving the checkpoint: ")
+                logger.error(e)
+
     def save_model(
         self, current_iter: int, last_iter_acc: float, prefix: Optional[str] = None
     ):

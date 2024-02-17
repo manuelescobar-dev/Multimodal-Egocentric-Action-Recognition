@@ -9,6 +9,7 @@ resume_from: null # checkpoint directory
 logname: null # name of the logs
 models_dir: null # directory containing all the models
 load_feat: False
+experiment_dir_name: last
 
 train:
   num_iter: 5000 # number of training iterations with total_batch size
