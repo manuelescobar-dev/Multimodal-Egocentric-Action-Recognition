@@ -3,3 +3,4 @@ from models.I3D import I3D
 from models.I3D_classifier import I3D_Classifier
 from models.LSTM_classifier import LSTM_Classifier
 from models.MLP_classifier import MLP_Classifier
+from models.Transformer import TransformerEncoder
