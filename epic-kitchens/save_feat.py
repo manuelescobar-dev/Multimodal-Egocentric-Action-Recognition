@@ -1,10 +1,10 @@
 import pickle
-from utils.logger import logger
+from utils.logger import logger, get_handler
 import torch.nn.parallel
 import torch.optim
 import torch
 from utils.loaders import EpicKitchensDataset
-from utils.args import args
+from utils.args import init_args
 from utils.utils import pformat_dict
 import utils
 import numpy as np
@@ -17,12 +17,16 @@ from utils.torch_device import get_device
 modalities = None
 np.random.seed(13696641)
 torch.manual_seed(13696641)
+args = None
 
 
 def init_operations():
     """
     parse all the arguments, generate the logger, check gpus to be used and wandb
     """
+    global args
+    args = init_args()
+    logger.addHandler(get_handler(args.logfile))
     logger.info("Feature Extraction")
     logger.info("Running with parameters: " + pformat_dict(args, indent=1))
 

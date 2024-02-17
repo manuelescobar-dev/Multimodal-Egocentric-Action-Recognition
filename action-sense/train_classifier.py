@@ -1,10 +1,10 @@
 from datetime import datetime
-from utils.logger import logger
+from utils.logger import logger, get_handler
 import torch.nn.parallel
 import torch.optim
 import torch
 from utils.loaders import ActionSenseDataset
-from utils.args import args
+from utils.args import init_args
 from utils.utils import pformat_dict
 import numpy as np
 import os
@@ -19,12 +19,16 @@ training_iterations = 0
 modalities = None
 np.random.seed(13696641)
 torch.manual_seed(13696641)
+args = None
 
 
 def init_operations():
     """
     parse all the arguments, generate the logger, check gpus to be used and wandb
     """
+    global args
+    args = init_args()
+    logger.addHandler(get_handler(args.logfile))
     logger.info("Running with parameters: " + pformat_dict(args, indent=1))
 
     # this is needed for multi-GPUs systems where you just want to use a predefined set of GPUs
@@ -38,6 +42,7 @@ def init_operations():
         wandb.run.name = (
             args.name + "_" + args.shift.split("-")[0] + "_" + args.shift.split("-")[-1]
         )
+    return args
 
 
 def main():
