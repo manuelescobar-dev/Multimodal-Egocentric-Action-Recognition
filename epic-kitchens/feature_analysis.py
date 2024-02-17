@@ -1,15 +1,13 @@
 import pickle
-from utils import args
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import numpy as np
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.decomposition import PCA
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
-
+from scipy.cluster.hierarchy import dendrogram, linkage
+import seaborn as sns
 
 PATH = "saved_features"
 FRAMES = 10
@@ -20,35 +18,14 @@ SHIFT = "D1"
 
 
 def load_features():
-    # Load features (pkl)
-    filename = os.path.join(
-        PATH,
-        NAME
-        + "_"
-        + str(FRAMES)
-        + "_"
-        + SPLIT
-        + "_"
-        + str(DENSE)
-        + "_"
-        + SHIFT
-        + "_"
-        + SPLIT
-        + ".pkl",
-    )
-
+    filename = os.path.join(PATH, f"{NAME}_{FRAMES}_{DENSE}_{SHIFT}_{SPLIT}.pkl")
     with open(filename, "rb") as f:
         features = pickle.load(f)
     return features
 
 
 def load_labels():
-    # Load labels
-    filename = os.path.join(
-        "train_val",
-        SHIFT + "_" + SPLIT + ".pkl",
-    )
-
+    filename = os.path.join("train_val", f"{SHIFT}_{SPLIT}.pkl")
     with open(filename, "rb") as f:
         labels = pickle.load(f)
     return labels["verb_class"].values
@@ -61,36 +38,26 @@ def transform_features():
     return df
 
 
-def plot_features(features):
-    # Plot features
-    plt.figure()
-    for i in range(5):
-        plt.scatter(
-            np.arange(len(features["features"][0]["features_RGB"][i])),
-            features["features"][0]["features_RGB"][i],
-            label=f"Clip {i}",
-            s=0.2,
-        )
-    plt.legend()
-    plt.show()
-
-
 def video_level_features(df):
-    # Define a function to calculate mean along axis 0
     def calculate_mean(array):
         return np.mean(array, axis=0)
 
-    # Apply the function to each element of the array_column and create a new column with means
     df["mean_feats"] = df["features_RGB"].apply(calculate_mean)
     return df
 
 
-def clustering(samples):
-    kmeans = KMeans(n_clusters=8)  # Change the number of clusters as needed
+def kmeans_clustering(samples):
+    kmeans = KMeans(n_clusters=8)
     kmeans.fit(samples)
     cluster_centers = kmeans.cluster_centers_
     labels = kmeans.labels_
     return cluster_centers, labels
+
+
+def hierarchical_clustering(samples):
+    agg_clustering = AgglomerativeClustering(n_clusters=8, linkage='ward')
+    labels = agg_clustering.fit_predict(samples)
+    return labels
 
 
 def accuracy(labels, true_labels):
@@ -100,41 +67,100 @@ def accuracy(labels, true_labels):
     print("Adjusted Rand Index (ARI):", ari)
     print("Normalized Mutual Information (NMI):", nmi)
 
-
-def visualize_clusters(samples, cluster_centers, labels):
+def visualize_clusters(ax, samples, cluster_centers, labels, title):
     pca = PCA(n_components=2)
     transformed_samples = pca.fit_transform(samples)
 
-    plt.figure(figsize=(10, 6))
-    for i in range(len(cluster_centers)):
-        cluster_samples = transformed_samples[labels == i]
-        plt.scatter(
-            cluster_samples[:, 0], cluster_samples[:, 1], label=f"Cluster {i+1}", s=10
-        )
+    if cluster_centers is not None:
+        for i in range(len(cluster_centers)):
+            cluster_samples = transformed_samples[labels == i]
+            ax.scatter(
+                cluster_samples[:, 0], cluster_samples[:, 1], label=f"Cluster {i+1}", s=10
+            )
 
-    plt.scatter(
-        cluster_centers[:, 0],
-        cluster_centers[:, 1],
-        marker="x",
-        color="black",
-        label="Centroids",
-    )
-    plt.title("K-means Clustering")
-    plt.xlabel("Principal Component 1")
-    plt.ylabel("Principal Component 2")
-    plt.legend()
+        ax.scatter(
+            cluster_centers[:, 0],
+            cluster_centers[:, 1],
+            marker="x",
+            color="black",
+            label="Centroids",
+        )
+    else:
+        unique_labels = np.unique(labels)
+        for i in unique_labels:
+            cluster_samples = transformed_samples[labels == i]
+            ax.scatter(
+                cluster_samples[:, 0], cluster_samples[:, 1], label=f"Cluster {i+1}", s=10
+            )
+
+    ax.set_title(title)
+    ax.set_xlabel("Principal Component 1")
+    ax.set_ylabel("Principal Component 2")
+    ax.legend()
+
+
+
+def plot_dendrogram(samples):
+    Z = linkage(samples, method='ward')
+    plt.figure(figsize=(12, 6))
+    dendrogram(Z)
+    plt.title('Hierarchical Clustering Dendrogram')
+    plt.xlabel('Sample Index')
+    plt.ylabel('Distance')
     plt.show()
 
 
+def plot_cluster_heatmap(samples, labels):
+    df = pd.DataFrame(samples)
+    df['cluster'] = labels
+    df = df.sort_values(by='cluster')
+    df = df.drop(columns='cluster')
+    sns.clustermap(df, cmap='viridis', figsize=(10, 8))
+    plt.title('Cluster Heatmap')
+    plt.show()
+
+
+def plot_tree_diagram(samples, labels):
+    Z = linkage(samples, method='ward')
+    plt.figure(figsize=(10, 6))
+    dendrogram(Z, orientation='right')
+    plt.title('Hierarchical Clustering Tree Diagram')
+    plt.xlabel('Distance')
+    plt.ylabel('Sample Index')
+    plt.show()
+
+
+
 if __name__ == "__main__":
+    features = load_features()
     load_labels()
     df = transform_features()
-    # Convert the 'mean_column' to a numpy array
-    samples = df["mean_feats"].to_numpy()
+    samples = np.vstack(df["mean_feats"].to_numpy())
 
-    # Stack the arrays along axis 0 to create a single numpy array
-    samples = np.vstack(samples)
-    centers, predictions = clustering(samples)
-    visualize_clusters(samples, centers, predictions)
-    labels = load_labels()
-    accuracy(predictions, labels)
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+
+    # K-means clustering
+    kmeans_centers, kmeans_predictions = kmeans_clustering(samples)
+    visualize_clusters(axes[0], samples, kmeans_centers, kmeans_predictions, "K-means Clustering")
+    accuracy(kmeans_predictions, load_labels())
+
+    # Hierarchical clustering
+    hierarchical_predictions = hierarchical_clustering(samples)
+    visualize_clusters(axes[1], samples, None, hierarchical_predictions, "Hierarchical Clustering")
+    accuracy(hierarchical_predictions, load_labels())
+
+    plt.tight_layout()
+    plt.show()
+
+    # Dendrogram
+    plot_dendrogram(samples)
+
+    # Cluster Heatmap
+    plot_cluster_heatmap(samples, hierarchical_predictions)
+
+    # Tree Diagram
+    plot_tree_diagram(samples, hierarchical_predictions)
+
+
+
+
