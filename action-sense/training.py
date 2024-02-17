@@ -4,29 +4,23 @@ from utils.logger import logger
 import os
 import torch
 
-FRAMES = [5, 10, 25]
-ACTIONS = ["train"]
 SAMPLING = [True, False]
-CONFIG = "configs/training.yaml"
-MODELS = ["LSTM_Classifier"]  # ["I3D_Classifier", "LSTM_Classifier", "MLP_Classifier"]
-#COMPLETED= {"LSTM_Classifier_5_True"}
-COMPLETED= {""}
+COMPLETED = {""}
+MODALITY = "EMG"
+CONFIG = f"configs/{MODALITY}_train.yaml"
+NAME = "emg_train"
 
 
 def run_command(args):
     command = [
         "python3",
         "train_classifier.py",
-        f"action={args['action']}",
         f"name={args['name']}",
         f"config={CONFIG}",
-        f"train.num_frames_per_clip.RGB={args['num_frames_per_clip']}",
-        f"train.dense_sampling.RGB={args['sampling']}",
-        f"test.num_frames_per_clip.RGB={args['num_frames_per_clip']}",
-        f"test.dense_sampling.RGB={args['sampling']}",
-        f"dataset.RGB.features_name={args['feats_name']}",
-        f"models.RGB.model={args['model']}",
-        f"multiclip={args['model']=='LSTM_Classifier'}",
+        f"train.dense_sampling.{MODALITY}={args['sampling']}",
+        f"test.dense_sampling.{MODALITY}={args['sampling']}",
+        f"train.stride.{MODALITY}={args['stride']}",
+        f"test.stride.{MODALITY}={args['stride']}",
     ]
     if args["resume_from"]:
         command.append(f"resume_from={os.path.join('saved_models', args['name'])}")
@@ -40,35 +34,23 @@ max_processes = 2  # Adjust as needed
 if __name__ == "__main__":
     logger.info("Starting training")
     arguments_list = []
-    for i in MODELS:
-        for j in FRAMES:
-            for k in SAMPLING:
-                for l in ACTIONS:
-                    if f"{i}_{j}_{k}" not in COMPLETED:
-                        if os.path.exists(os.path.join("saved_models", f"{i}_{j}_{k}")):
-                            arguments_list.append(
-                                {
-                                    "action": l,
-                                    "name": f"{i}_{j}_{k}",
-                                    "num_frames_per_clip": j,
-                                    "sampling": k,
-                                    "model": i,
-                                    "feats_name": f"feat_{j}_{k}",
-                                    "resume_from": True,
-                                }
-                            )
-                        else:
-                            arguments_list.append(
-                                {
-                                    "action": l,
-                                    "name": f"{i}_{j}_{k}",
-                                    "num_frames_per_clip": j,
-                                    "sampling": k,
-                                    "model": i,
-                                    "feats_name": f"feat_{j}_{k}",
-                                    "resume_from": False,
-                                }
-                            )
+    for s in SAMPLING:
+        if s == True:
+            max_stride = 2
+        for i in range(1, max_stride + 1):
+            name = NAME + f"_{s}_{i}"
+            if name not in COMPLETED:
+                a = {
+                    "name": name,
+                    "sampling": s,
+                    "stride": i,
+                }
+                if os.path.exists(os.path.join("saved_models", name)):
+                    a["resume_from"] = True
+                    arguments_list.append(a)
+                else:
+                    a["resume_from"] = False
+                    arguments_list.append(a)
 
     # Execute commands sequentially
     for args in arguments_list:
