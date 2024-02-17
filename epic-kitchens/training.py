@@ -8,7 +8,7 @@ FRAMES = [5, 10, 25]
 ACTIONS = ["train"]
 SAMPLING = [True, False]
 CONFIG = "configs/training.yaml"
-MODELS = ["LSTM_Classifier"]  # ["I3D_Classifier", "LSTM_Classifier", "MLP_Classifier"]
+MODELS = ["TransformerEncoder"]  # ["I3D_Classifier", "LSTM_Classifier", "MLP_Classifier"]
 #COMPLETED= {"LSTM_Classifier_5_True"}
 COMPLETED= {""}
 
