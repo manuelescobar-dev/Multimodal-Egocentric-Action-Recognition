@@ -3,7 +3,8 @@ import torch
 import pandas as pd
 import os
 
-def get_num_classes(modalities):
+
+def get_num_classes(modalities, annotations_path):
     # Find the number of classes in the train and test set
     if len(modalities) > 1 or modalities[0] == "RGB":
         pickle_name = "MULTIMODAL"
@@ -11,18 +12,17 @@ def get_num_classes(modalities):
         pickle_name = modalities[0]
 
     pickle_name += ".pkl"
-    
-    with open(os.path.join(f"data/final/train_{pickle_name}"), "rb") as f:
+
+    with open(os.path.join(annotations_path, f"train_{pickle_name}"), "rb") as f:
         train_data = pd.read_pickle(f)
-        
-    with open(os.path.join(f"data/final/test_{pickle_name}"), "rb") as f:
+
+    with open(os.path.join(annotations_path, f"test_{pickle_name}"), "rb") as f:
         test_data = pd.read_pickle(f)
-    
+
     train_classes = train_data["label"].unique().tolist()
     test_classes = test_data["label"].unique().tolist()
     total_classes = set(train_classes + test_classes)
     return len(total_classes)
-    
 
 
 class Accuracy(object):

@@ -1,12 +1,13 @@
 action: train # train or test
-name: emg_train # name of the experiment needed for the logs
+name: emg_train_6 # name of the experiment needed for the logs
 modality: ["EMG"] # modality used
 load_feat:
   RGB: True
   EMG: False
-resume_from:
-  RGB: saved_models/rgb_train
-  EMG: saved_models/emg_train
+#resume_from:
+  #RGB: saved_models/rgb_train
+  #EMG: saved_models/emg_train
+multimodal: False
 
 train:
   num_clips: 1
@@ -27,7 +28,7 @@ test:
     EMG: 1
 
 dataset:
-  annotations_path: data/final # path for the annotations data
+  annotations_path: data/final_5x1 # path for the annotations data
   workers: 4 # number of workers for the dataloader
   resolution: 224 # input resolution to the model
   RGB:
@@ -56,7 +57,3 @@ models:
     lr: 0.1
     sgd_momentum: 0.9
     weight_decay: 1e-7
-    fs: 160
-    cutoff: 5
-    num_channels: 16
-    normalization: False

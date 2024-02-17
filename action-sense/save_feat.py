@@ -28,8 +28,8 @@ def init_operations():
     logger.info("Running with parameters: " + pformat_dict(args, indent=1))
 
     if args.gpus is not None:
-        logger.debug('Using only these GPUs: {}'.format(args.gpus))
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
+        logger.debug("Using only these GPUs: {}".format(args.gpus))
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
 
 def main():
@@ -39,7 +39,7 @@ def main():
 
     # recover valid paths, domains, classes
     # this will output the domain conversion (D1 -> 8, et cetera) and the label list
-    num_classes = get_num_classes(modalities)
+    num_classes = get_num_classes(modalities, args.dataset.annotations_path)
     logger.info("Number of classes: {}".format(num_classes))
     device = torch.device(get_device())
     logger.info("Device: {}".format(device))
@@ -49,14 +49,24 @@ def main():
     test_augmentations = {}
     logger.info("Instantiating models per modality")
     for m in modalities:
-        logger.info('{} Net\tModality: {}'.format(args.models[m].model, m))
-        models[m] = getattr(model_list, args.models[m].model)(num_classes, m, args.models[m], **args.models[m].kwargs)
+        logger.info("{} Net\tModality: {}".format(args.models[m].model, m))
+        models[m] = getattr(model_list, args.models[m].model)(
+            num_classes, m, args.models[m], **args.models[m].kwargs
+        )
         train_augmentations[m], test_augmentations[m] = models[m].get_augmentation(m)
 
-
-    action_classifier = tasks.ActionRecognition("action-classifier", models, 1,
-                                                args.total_batch, args.models_dir, num_classes,
-                                                args.save.num_clips, args.models, save=True,args=args)
+    action_classifier = tasks.ActionRecognition(
+        "action-classifier",
+        models,
+        1,
+        args.total_batch,
+        args.models_dir,
+        num_classes,
+        args.save.num_clips,
+        args.models,
+        save=True,
+        args=args,
+    )
     action_classifier.load_on_gpu(device)
     if args.resume_from is not None:
         action_classifier.load_last_model(args.resume_from)
@@ -64,15 +74,29 @@ def main():
     if args.action == "save":
         augmentations = {"train": train_augmentations, "test": test_augmentations}
         # the only action possible with this script is "save"
-        loader = torch.utils.data.DataLoader(ActionSenseDataset(modalities,
-                                                                 args.split, args.dataset,
-                                                                 args.save,
-                                                                 args.save.num_clips,
-                                                                 augmentations[args.split],
-                                                                 additional_info=True),
-                                             batch_size=1, shuffle=False,
-                                             num_workers=args.dataset.workers, pin_memory=True, drop_last=False)
-        save_feat(action_classifier, loader, device, action_classifier.current_iter, num_classes)
+        loader = torch.utils.data.DataLoader(
+            ActionSenseDataset(
+                modalities,
+                args.split,
+                args.dataset,
+                args.save,
+                args.save.num_clips,
+                augmentations[args.split],
+                additional_info=True,
+            ),
+            batch_size=1,
+            shuffle=False,
+            num_workers=args.dataset.workers,
+            pin_memory=True,
+            drop_last=False,
+        )
+        save_feat(
+            action_classifier,
+            loader,
+            device,
+            action_classifier.current_iter,
+            num_classes,
+        )
     else:
         raise NotImplementedError
 
@@ -101,13 +125,22 @@ def save_feat(model, loader, device, it, num_classes):
 
             for m in modalities:
                 batch, _, height, width = data[m].shape
-                data[m] = data[m].reshape(batch, args.save.num_clips,
-                                          args.save.num_frames_per_clip[m], -1, height, width)
+                data[m] = data[m].reshape(
+                    batch,
+                    args.save.num_clips,
+                    args.save.num_frames_per_clip[m],
+                    -1,
+                    height,
+                    width,
+                )
                 data[m] = data[m].permute(1, 0, 3, 2, 4, 5)
 
-                logits[m] = torch.zeros((args.save.num_clips, batch, num_classes)).to(device)
-                features[m] = torch.zeros((args.save.num_clips, batch, model.task_models[m]
-                                           .module.feat_dim)).to(device)
+                logits[m] = torch.zeros((args.save.num_clips, batch, num_classes)).to(
+                    device
+                )
+                features[m] = torch.zeros(
+                    (args.save.num_clips, batch, model.task_models[m].module.feat_dim)
+                ).to(device)
 
             clip = {}
             for i_c in range(args.save.num_clips):
@@ -122,7 +155,9 @@ def save_feat(model, loader, device, it, num_classes):
             for m in modalities:
                 logits[m] = torch.mean(logits[m], dim=0)
             for i in range(batch):
-                sample = {"uid": int(uid[i].cpu().detach().numpy()),}
+                sample = {
+                    "uid": int(uid[i].cpu().detach().numpy()),
+                }
                 for m in modalities:
                     sample["features_" + m] = features[m][:, i].cpu().detach().numpy()
                     sample["label_" + m] = label[i].cpu().detach().numpy()
@@ -132,34 +167,72 @@ def save_feat(model, loader, device, it, num_classes):
             model.compute_accuracy(logits, label)
 
             if (i_val + 1) % (len(loader) // 5) == 0:
-                logger.info("[{}/{}] top1= {:.3f}% top5 = {:.3f}%".format(i_val + 1, len(loader),
-                                                                          model.accuracy.avg[1], model.accuracy.avg[5]))
+                logger.info(
+                    "[{}/{}] top1= {:.3f}% top5 = {:.3f}%".format(
+                        i_val + 1,
+                        len(loader),
+                        model.accuracy.avg[1],
+                        model.accuracy.avg[5],
+                    )
+                )
 
         os.makedirs("saved_features", exist_ok=True)
-        pickle.dump(results_dict, open(os.path.join("saved_features", args.name + "_" +
-                                                    str(args.modality) + "_" +
-                                                    args.split + ".pkl"), 'wb'))
+        pickle.dump(
+            results_dict,
+            open(
+                os.path.join(
+                    "saved_features",
+                    args.name + "_" + str(args.modality) + "_" + args.split + ".pkl",
+                ),
+                "wb",
+            ),
+        )
 
-        class_accuracies = [(x / y) * 100 for x, y in zip(model.accuracy.correct, model.accuracy.total) if y != 0]
-        logger.info('Final accuracy: top1 = %.2f%%\ttop5 = %.2f%%' % (model.accuracy.avg[1],
-                                                                      model.accuracy.avg[5]))
+        class_accuracies = [
+            (x / y) * 100
+            for x, y in zip(model.accuracy.correct, model.accuracy.total)
+            if y != 0
+        ]
+        logger.info(
+            "Final accuracy: top1 = %.2f%%\ttop5 = %.2f%%"
+            % (model.accuracy.avg[1], model.accuracy.avg[5])
+        )
         for i_class, class_acc in enumerate(class_accuracies):
-            logger.info('Class %d = [%d/%d] = %.2f%%' % (i_class,
-                                                         int(model.accuracy.correct[i_class]),
-                                                         int(model.accuracy.total[i_class]),
-                                                         class_acc))
+            logger.info(
+                "Class %d = [%d/%d] = %.2f%%"
+                % (
+                    i_class,
+                    int(model.accuracy.correct[i_class]),
+                    int(model.accuracy.total[i_class]),
+                    class_acc,
+                )
+            )
 
-    logger.info('Accuracy by averaging class accuracies (same weight for each class): {}%'
-                .format(np.array(class_accuracies).mean(axis=0)))
-    test_results = {'top1': model.accuracy.avg[1], 'top5': model.accuracy.avg[5],
-                    'class_accuracies': np.array(class_accuracies)}
+    logger.info(
+        "Accuracy by averaging class accuracies (same weight for each class): {}%".format(
+            np.array(class_accuracies).mean(axis=0)
+        )
+    )
+    test_results = {
+        "top1": model.accuracy.avg[1],
+        "top5": model.accuracy.avg[5],
+        "class_accuracies": np.array(class_accuracies),
+    }
 
-    with open(os.path.join(args.log_dir, f'val_precision_{str(args.modality)}-'
-                                         f'{str(args.modality)}.txt'), 'a+') as f:
-        f.write("[%d/%d]\tAcc@top1: %.2f%%\n" % (it, args.train.num_iter, test_results['top1']))
+    with open(
+        os.path.join(
+            args.log_dir,
+            f"val_precision_{str(args.modality)}-" f"{str(args.modality)}.txt",
+        ),
+        "a+",
+    ) as f:
+        f.write(
+            "[%d/%d]\tAcc@top1: %.2f%%\n"
+            % (it, args.train.num_iter, test_results["top1"])
+        )
 
     return test_results
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

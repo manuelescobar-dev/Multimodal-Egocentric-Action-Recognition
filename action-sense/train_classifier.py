@@ -46,7 +46,7 @@ def main():
     modalities = args.modality
 
     # recover valid paths, domains, classes
-    num_classes = get_num_classes(modalities)
+    num_classes = get_num_classes(modalities, args.dataset.annotations_path)
     logger.info("Number of classes: {}".format(num_classes))
     # device where everything is run
     device = torch.device("cpu")
