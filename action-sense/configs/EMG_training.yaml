@@ -1,9 +1,12 @@
 action: train # train or test
-name: emg_train # name of the experiment needed for the logs
+name: ??? # name of the experiment needed for the logs
 modality: ["EMG"] # modality used
 load_feat:
   RGB: True
   EMG: False
+#resume_from:
+  #RGB: saved_models/rgb_train
+  #EMG: saved_models/emg_train
 multimodal: False
 
 train:
@@ -11,20 +14,20 @@ train:
   lr_steps: 1750
   num_clips: 1
   dense_sampling: 
-    EMG: True
+    EMG: ???
   num_frames_per_clip: 
     EMG: 100
   stride:
-    EMG: 1
+    EMG: ???
 
 test:
   num_clips: 5
   dense_sampling: 
-    EMG: True
+    EMG: ???
   num_frames_per_clip: 
     EMG: 100
   stride:
-    EMG: 1
+    EMG: ???
 
 dataset:
   annotations_path: data/final_10x1 # path for the annotations data

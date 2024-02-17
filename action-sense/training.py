@@ -23,7 +23,8 @@ def run_command(args):
         f"test.stride.{MODALITY}={args['stride']}",
     ]
     if args["resume_from"]:
-        command.append(f"resume_from={os.path.join('saved_models', args['name'])}")
+        r = {"EMG": os.path.join("saved_models", args["name"])}
+        command.append(f"resume_from={r}")
     subprocess.run(command)
 
 

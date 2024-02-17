@@ -219,8 +219,11 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
         source_label = source_label.to(device)
 
         for m in modalities:
-            if m == "EMG":
+            if m == "MIDLEVEL":
+                batch = source_data[m]["EMG"].shape[0]
+            else:
                 batch = source_data[m].shape[0]
+            if m == "EMG":
                 source_data[m] = source_data[m].reshape(
                     batch,
                     args.train.num_clips,
@@ -228,14 +231,51 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
                     -1,
                 )
                 source_data[m] = source_data[m].permute(1, 0, 2, 3)
-            elif m == "RGB":
+                assert source_data[m].shape == (
+                    args.train.num_clips,
+                    batch,
+                    args.train.num_frames_per_clip[m],
+                    16,
+                )
+            elif m == "RGB" and args.load_feat[m]:
                 source_data[m] = source_data[m].permute(1, 0, 2)
+                assert source_data[m].shape == (
+                    args.train.num_clips,
+                    batch,
+                    1024,
+                )
+            elif m == "RGB" and not args.load_feat[m]:
+                raise ValueError("RGB modality should be loaded from features")
+            elif m == "MIDLEVEL":
+                source_data[m]["EMG"] = source_data[m]["EMG"].reshape(
+                    args.train.num_clips,
+                    batch,
+                    args.train.num_frames_per_clip["EMG"],
+                    -1,
+                )
+                assert source_data[m]["EMG"].shape == (
+                    args.train.num_clips,
+                    batch,
+                    args.train.num_frames_per_clip["EMG"],
+                    16,
+                )
+                source_data[m]["RGB"] = source_data[m]["RGB"].permute(1, 0, 2)
+                assert source_data[m]["RGB"].shape == (
+                    args.train.num_clips,
+                    batch,
+                    1024,
+                )
 
         data = {}
         for clip in range(args.train.num_clips):
             # in case of multi-clip training one clip per time is processed
             for m in modalities:
-                data[m] = source_data[m][clip].to(device)
+                if m == "MIDLEVEL":
+                    data[m] = {}
+                    for mod in ["EMG", "RGB"]:
+                        data[m][mod] = source_data[m][mod][clip].to(device)
+                else:
+                    data[m] = source_data[m][clip].to(device)
 
             logits, _ = action_classifier.forward(data)
             action_classifier.compute_loss(logits, source_label, loss_weight=1)
@@ -306,7 +346,10 @@ def validate(model, val_loader, device, it, num_classes):
             label = label.to(device)
 
             for m in modalities:
-                batch = data[m].shape[0]
+                if m == "MIDLEVEL":
+                    batch = data[m]["EMG"].shape[0]
+                else:
+                    batch = data[m].shape[0]
                 logits[m] = torch.zeros((args.test.num_clips, batch, num_classes)).to(
                     device
                 )
@@ -317,13 +360,51 @@ def validate(model, val_loader, device, it, num_classes):
                         args.test.num_frames_per_clip[m],
                         -1,
                     )
-                elif m == "RGB" and args.load_feat:
-                    continue
+                    data[m] = data[m].permute(1, 0, 2, 3)
+                    assert data[m].shape == (
+                        args.test.num_clips,
+                        batch,
+                        args.test.num_frames_per_clip[m],
+                        16,
+                    )
+                elif m == "RGB" and args.load_feat[m]:
+                    data[m] = data[m].permute(1, 0, 2)
+                    assert data[m].shape == (
+                        args.test.num_clips,
+                        batch,
+                        1024,
+                    )
+                elif m == "RGB" and not args.load_feat[m]:
+                    raise ValueError("RGB modality should be loaded from features")
+                elif m == "MIDLEVEL":
+                    data[m]["EMG"] = data[m]["EMG"].reshape(
+                        args.test.num_clips,
+                        batch,
+                        args.test.num_frames_per_clip["EMG"],
+                        -1,
+                    )
+                    assert data[m]["EMG"].shape == (
+                        args.test.num_clips,
+                        batch,
+                        args.test.num_frames_per_clip["EMG"],
+                        16,
+                    )
+                    data[m]["RGB"] = data[m]["RGB"].permute(1, 0, 2)
+                    assert data[m]["RGB"].shape == (
+                        args.test.num_clips,
+                        batch,
+                        1024,
+                    )
 
             clip = {}
             for i_c in range(args.test.num_clips):
                 for m in modalities:
-                    clip[m] = data[m][:, i_c].to(device)
+                    if m == "MIDLEVEL":
+                        clip[m] = {}
+                        for mod in ["EMG", "RGB"]:
+                            clip[m][mod] = data[m][mod][i_c].to(device)
+                    else:
+                        clip[m] = data[m][i_c].to(device)
 
                 output, _ = model(clip)
                 for m in modalities:

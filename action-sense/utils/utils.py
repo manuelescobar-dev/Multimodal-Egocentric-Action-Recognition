@@ -6,7 +6,7 @@ import os
 
 def get_num_classes(modalities, annotations_path):
     # Find the number of classes in the train and test set
-    if len(modalities) > 1 or modalities[0] == "RGB":
+    if len(modalities) > 1 or modalities[0] == "RGB" or modalities[0] == "MIDLEVEL":
         pickle_name = "MULTIMODAL"
     else:
         pickle_name = modalities[0]

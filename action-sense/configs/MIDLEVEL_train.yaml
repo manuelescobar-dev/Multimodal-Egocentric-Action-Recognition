@@ -1,42 +1,47 @@
 action: train # train or test
-name: emg_train # name of the experiment needed for the logs
-modality: ["EMG"] # modality used
+name: midlevel_train # name of the experiment needed for the logs
+modality: ["MIDLEVEL"] # modality used
 load_feat:
   RGB: True
   EMG: False
-multimodal: False
+multimodal: True
 
 train:
-  num_iter: 2000
-  lr_steps: 1750
   num_clips: 1
+  eval_freq: 50
   dense_sampling: 
     EMG: True
+    RGB: True
   num_frames_per_clip: 
     EMG: 100
+    RGB: 16
   stride:
-    EMG: 1
+    EMG: 2
+    RGB: 2
 
 test:
   num_clips: 5
   dense_sampling: 
     EMG: True
+    RGB: True
   num_frames_per_clip: 
     EMG: 100
+    RGB: 16
   stride:
-    EMG: 1
+    EMG: 2
+    RGB: 2
 
 dataset:
-  annotations_path: data/final_10x1 # path for the annotations data
+  annotations_path: data/final_10x20 # path for the annotations data
   workers: 4 # number of workers for the dataloader
   resolution: 224 # input resolution to the model
   RGB:
-    data_path: Volumes/Mac/AML/frames
+    data_path: data/frames
 
 # these are the action recognition models for each modality
 models:
   RGB:
-    model: I3D
+    model: MLP_Classifier
     dropout: 0.5
     normalize: False
     resolution: 224
@@ -45,7 +50,6 @@ models:
     lr: 0.01
     sgd_momentum: 0.9
     weight_decay: 1e-7
-    weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'
   EMG:
     model: ActionNet
     hidden_size: 50
@@ -56,3 +60,18 @@ models:
     lr: 0.1
     sgd_momentum: 0.9
     weight_decay: 1e-7
+    fs: 160
+    cutoff: 5
+    num_channels: 16
+    normalization: False
+  MIDLEVEL:
+    model: MidlevelActionNet
+    emg_feature_size: 1024
+    rgb_feature_size: 1024
+    dropout: 0.25
+    lr_steps: 3000
+    lr: 0.1
+    sgd_momentum: 0.9
+    weight_decay: 1e-7
+    hidden_size: 512
+
