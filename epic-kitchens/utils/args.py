@@ -64,3 +64,5 @@ def init_args():
         args.models_dir = os.path.join("saved_models", args.name)
     if args.action != "train" and args.action != "save" and args.resume_from is None:
         args.resume_from = os.path.join(args.models_dir, args.name)
+
+    return args
