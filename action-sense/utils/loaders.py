@@ -47,12 +47,19 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.mode = mode  # 'train', 'val' or 'test'
         self.dataset_conf = dataset_conf
         self.additional_info = additional_info
-        self.transform = transform  # pipeline of transforms
+        if self.modalities[0] == "MIDLEVEL":
+            self.transform = {"RGB": None, "EMG": None}
+        else:
+            self.transform = transform  # pipeline of transforms
         self.load_feat = load_feat
         self.mode_config = mode_config
         self.num_clips = num_clips
 
-        if len(self.modalities) > 1 or self.modalities[0] == "RGB" or multimodal:
+        if (
+            len(self.modalities) > 1
+            or self.modalities[0] == "RGB"
+            or self.modalities[0] == "MIDLEVEL"
+        ):
             pickle_name = f"{self.mode}_MULTIMODAL"
         else:
             pickle_name = f"{self.mode}_{self.modalities[0]}"
@@ -76,15 +83,27 @@ class ActionSenseDataset(data.Dataset, ABC):
 
         self.features = {}
         for m in self.modalities:
-            if self.load_feat[m]:
-                self.features[m] = pd.DataFrame(
-                    pd.read_pickle(
-                        os.path.join(
-                            "saved_features",
-                            pickle_name,
+            if m == "MIDLEVEL":
+                for mod in ["RGB", "EMG"]:
+                    if self.load_feat[mod]:
+                        self.features[mod] = pd.DataFrame(
+                            pd.read_pickle(
+                                os.path.join(
+                                    "saved_features",
+                                    pickle_name,
+                                )
+                            )["features"]
                         )
-                    )["features"]
-                )
+            else:
+                if self.load_feat[m]:
+                    self.features[m] = pd.DataFrame(
+                        pd.read_pickle(
+                            os.path.join(
+                                "saved_features",
+                                pickle_name,
+                            )
+                        )["features"]
+                    )
 
     def _getEMG(self, index):
         record = self.record_list[index]
@@ -115,6 +134,13 @@ class ActionSenseDataset(data.Dataset, ABC):
         for m in self.modalities:
             if m == "EMG":
                 item[m], label = self._getEMG(index)
+            elif m == "MIDLEVEL":
+                emg, label = self._getEMG(index)
+                rgb, label = self._get_RGB(index)
+                item[m], label = {
+                    "EMG": emg,
+                    "RGB": rgb,
+                }, label
             else:
                 item[m], label = self._get_RGB(index)
         if self.additional_info:
