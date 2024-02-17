@@ -269,6 +269,9 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
                 logger.info("New best accuracy {:.2f}%".format(val_metrics["top1"]))
                 action_classifier.best_iter = real_iter
                 action_classifier.best_iter_score = val_metrics["top1"]
+                action_classifier.save_best_model(
+                    real_iter, val_metrics["top1"], prefix=None
+                )
 
             action_classifier.save_model(real_iter, val_metrics["top1"], prefix=None)
             action_classifier.train(True)
@@ -372,8 +375,8 @@ def validate(model, val_loader, device, it, num_classes):
         "a+",
     ) as f:
         f.write(
-            "[%d/%d]\tAcc@top1: %.2f%%\n"
-            % (it, args.train.num_iter, test_results["top1"])
+            "[%d/%d]\tAcc@top1: %.2f%% \tAcc@top5: %.2f%%\n"
+            % (it, args.train.num_iter, test_results["top1"], test_results["top5"])
         )
 
     return test_results

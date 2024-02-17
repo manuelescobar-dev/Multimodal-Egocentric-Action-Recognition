@@ -1,5 +1,5 @@
 action: train # train or test
-name: emg_train_6 # name of the experiment needed for the logs
+name: emg_train_9 # name of the experiment needed for the logs
 modality: ["EMG"] # modality used
 load_feat:
   RGB: True
@@ -28,7 +28,7 @@ test:
     EMG: 1
 
 dataset:
-  annotations_path: data/final_5x1 # path for the annotations data
+  annotations_path: data/final_10x1 # path for the annotations data
   workers: 4 # number of workers for the dataloader
   resolution: 224 # input resolution to the model
   RGB:

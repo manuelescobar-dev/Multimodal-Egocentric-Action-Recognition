@@ -164,8 +164,9 @@ class ActionSenseDataset(data.Dataset, ABC):
                 record.num_frames(submodality) // self.num_clips,
                 self.mode_config.num_frames_per_clip[modality],
             )
+            clip_frames = min(clip_frames, record.num_frames(submodality))
             highest_idx = max(0, record.num_frames(submodality) - clip_frames)
-            for _ in range(self.mode_config):
+            for _ in range(self.num_clips):
                 # Selects a random offset between 0 and the highest possible index
                 offset = random_offset(highest_idx)
                 # Selects K evenly spaced frames from each clip

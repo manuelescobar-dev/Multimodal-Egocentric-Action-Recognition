@@ -46,7 +46,18 @@ args = OmegaConf.merge(args, path_args)
 args = OmegaConf.merge(args, cli_args)
 
 # add log directories
-args.experiment_dir = os.path.join(args.name, datetime.now().strftime("%b%d_%H-%M-%S"))
+if os.path.exists(args.name):
+    # Numbered directories
+    list_dir = os.listdir(args.name)
+    max = 0
+    for d in list_dir:
+        if d.isdigit():
+            if int(d) > max:
+                max = int(d)
+    args.experiment_dir = os.path.join(args.name, "trail_" + str(max + 1))
+else:
+    args.experiment_dir = os.path.join(args.name, "trail_0")
+# args.experiment_dir = os.path.join(args.name, datetime.now().strftime("%b%d_%H-%M"))
 if args.action != "train":
     args.log_dir = os.path.join("TEST_RESULTS", args.name)
     if args.logname is None:
