@@ -225,6 +225,11 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
             # in case of multi-clip training one clip per time is processed
             for m in modalities:
                 data[m] = source_data[m].to(device)
+                assert data[m].shape == (
+                    args.batch_size,
+                    args.train.num_clips,
+                    1024,
+                )
 
             logits, _ = action_classifier.forward(data)
             action_classifier.compute_loss(logits, source_label, loss_weight=1)
@@ -235,6 +240,7 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
                 # in case of multi-clip training one clip per time is processed
                 for m in modalities:
                     data[m] = source_data[m][:, clip].to(device)
+                    assert data[m].shape == (args.batch_size, 1024)
 
                 logits, _ = action_classifier.forward(data)
                 action_classifier.compute_loss(logits, source_label, loss_weight=1)
@@ -314,6 +320,11 @@ def validate(model, val_loader, device, it, num_classes):
             if args.multiclip:
                 for m in modalities:
                     clip[m] = data[m].to(device)
+                    assert clip[m].shape == (
+                        args.batch_size,
+                        args.train.num_clips,
+                        1024,
+                    )
 
                 output, _ = model(clip)
                 for m in modalities:
@@ -322,6 +333,7 @@ def validate(model, val_loader, device, it, num_classes):
                 for i_c in range(args.test.num_clips):
                     for m in modalities:
                         clip[m] = data[m][:, i_c].to(device)
+                        assert clip[m].shape == (args.batch_size, 1024)
 
                     output, _ = model(clip)
                     for m in modalities:

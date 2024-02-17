@@ -57,6 +57,9 @@ class MidlevelActionNet(nn.Module):
         """
         x_emg = x["EMG"]
         x_rgb = x["RGB"]
+
+        assert x_emg.shape == (x_emg.size(0), 100, 16)
+        assert x_rgb.shape == (x_rgb.size(0), 1024)
         # x = self.avgpool(x)  # Average pooling
         (h0, c0) = (
             torch.zeros(1, x_emg.size(0), self.model_config.emg_feature_size).to(

@@ -43,6 +43,7 @@ class ActionNet(nn.Module):
 
     def forward(self, x):
         # x = self.avgpool(x)  # Average pooling
+        assert x.shape == (x.size(0), 100, 16)
         (h0, c0) = (
             torch.zeros(1, x.size(0), self.model_config.hidden_size).to(x.device),
             torch.zeros(1, x.size(0), self.model_config.hidden_size).to(x.device),

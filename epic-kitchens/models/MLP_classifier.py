@@ -10,10 +10,8 @@ class MLP_Classifier(nn.Module):
         self.model_config = model_config
         self.dropout = nn.Dropout(self.model_config.dropout)
         self.linear = nn.Linear(1024, num_classes)
-        self.classifier = nn.Sequential(
-            self.dropout,
-            self.linear
-        )
+        self.classifier = nn.Sequential(self.dropout, self.linear)
 
     def forward(self, x):
+        assert x.shape == (x.size(0), 1024)
         return self.classifier(x), {}

@@ -22,6 +22,7 @@ class I3D_Classifier(nn.Module):
         InceptionI3d.truncated_normal_(self.logits.conv3d.weight, std=1 / 32)
 
     def forward(self, x):
+        assert x.shape == (x.size(0), 1024, 1, 1, 1)
         x = self.dropout(x).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         logits = self.logits(x).squeeze(3).squeeze(3).squeeze(2)
         return logits, {}
