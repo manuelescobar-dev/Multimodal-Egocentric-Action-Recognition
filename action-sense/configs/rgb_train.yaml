@@ -37,7 +37,7 @@ dataset:
 # these are the action recognition models for each modality
 models:
   RGB:
-    model: I3D
+    model: MLP_Classifier
     dropout: 0.5
     normalize: False
     resolution: 224
@@ -46,7 +46,6 @@ models:
     lr: 0.01
     sgd_momentum: 0.9
     weight_decay: 1e-7
-    weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'
   EMG:
     model: ActionNet
     hidden_size: 50

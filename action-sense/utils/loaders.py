@@ -80,7 +80,6 @@ class ActionSenseDataset(data.Dataset, ABC):
                     )
                 )["features"]
             )
-            print(self.rgb_features)
 
     def _getEMG(self, index):
         record= self.record_list[index]
@@ -238,8 +237,8 @@ class ActionSenseDataset(data.Dataset, ABC):
 
         if self.load_feat:
             sample = {}
-            sample_row = self.model_features[
-                self.model_features["uid"] == int(record.uid)
+            sample_row = self.rgb_features[
+                self.rgb_features["uid"] == int(record.uid)
             ]
             assert len(sample_row) == 1
             for m in self.modalities:

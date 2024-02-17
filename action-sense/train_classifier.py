@@ -206,14 +206,17 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
 
         
         for m in modalities:
-            batch = source_data[m].shape[0]
-            source_data[m] = source_data[m].reshape(
-                batch,
-                args.train.num_clips,
-                args.train.num_frames_per_clip[m],
-                -1,
-            )
-            source_data[m] = source_data[m].permute(1, 0, 2, 3)
+            if m == "EMG":
+                batch = source_data[m].shape[0]
+                source_data[m] = source_data[m].reshape(
+                    batch,
+                    args.train.num_clips,
+                    args.train.num_frames_per_clip[m],
+                    -1,
+                )
+                source_data[m] = source_data[m].permute(1, 0, 2, 3)
+            elif m=="RGB":
+                source_data[m] = source_data[m].permute(1, 0 ,2)
 
         data = {}
         for clip in range(args.train.num_clips):
@@ -291,12 +294,15 @@ def validate(model, val_loader, device, it, num_classes):
                 logits[m] = torch.zeros((args.test.num_clips, batch, num_classes)).to(
                     device
                 )
-                data[m] = data[m].reshape(
-                    batch,
-                    args.test.num_clips,
-                    args.test.num_frames_per_clip[m],
-                    -1,
-                )
+                if m == "EMG":
+                    data[m] = data[m].reshape(
+                        batch,
+                        args.test.num_clips,
+                        args.test.num_frames_per_clip[m],
+                        -1,
+                    )
+                elif m=="RGB" and args.load_feat:
+                    continue
 
             
             clip = {}
