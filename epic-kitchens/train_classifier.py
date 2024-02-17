@@ -207,7 +207,10 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
         end_t = datetime.now()
 
         # Free memory
-        torch.mps.empty_cache()
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+        elif device.type == "mps":
+            torch.mps.empty_cache()
 
         logger.info(
             f"Iteration {i}/{training_iterations} batch retrieved! Elapsed time = "
