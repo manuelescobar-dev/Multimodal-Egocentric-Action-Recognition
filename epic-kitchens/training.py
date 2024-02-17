@@ -4,11 +4,11 @@ from utils.logger import logger
 import os
 import torch
 
-FRAMES = [5, 10, 25]
+FRAMES = [5,10,25]
 ACTIONS = ["train"]
 SAMPLING = [True, False]
 CONFIG = "configs/training.yaml"
-MODELS = ["TransformerEncoder"]  # ["I3D_Classifier", "LSTM_Classifier", "MLP_Classifier"]
+MODELS = ["MLP_Classifier_2"]  # ["I3D_Classifier", "LSTM_Classifier", "MLP_Classifier"]
 #COMPLETED= {"LSTM_Classifier_5_True"}
 COMPLETED= {""}
 
@@ -27,6 +27,7 @@ def run_command(args):
         f"dataset.RGB.features_name={args['feats_name']}",
         f"models.RGB.model={args['model']}",
         f"multiclip={args['model']=='LSTM_Classifier'}",
+        f"logfile=Experiment_logs/{args['name']}"
     ]
     if args["resume_from"]:
         command.append(f"resume_from={os.path.join('saved_models', args['name'])}")
