@@ -81,7 +81,8 @@ def main():
     if args.action == "train":
         # resume_from argument is adopted in case of restoring from a checkpoint
         if args.resume_from is not None:
-            action_classifier.load_last_model(args.resume_from)
+            for m in modalities:
+                action_classifier.load_last_model(m, args.resume_from[m])
         # define number of iterations I'll do with the actual batch: we do not reason with epochs but with iterations
         # i.e. number of batches passed
         # notice, here it is multiplied by tot_batch/batch_size since gradient accumulation technique is adopted
@@ -96,6 +97,7 @@ def main():
                 args.dataset,
                 args.train,
                 args.train.num_clips,
+                multimodal=args.multimodal,
                 transform=transformations["train"],
                 load_feat=args.load_feat,
             ),
@@ -113,6 +115,7 @@ def main():
                 args.dataset,
                 args.test,
                 args.test.num_clips,
+                multimodal=args.multimodal,
                 transform=transformations["test"],
                 load_feat=args.load_feat,
             ),
@@ -126,7 +129,9 @@ def main():
 
     elif args.action == "validate":
         if args.resume_from is not None:
-            action_classifier.load_last_model(args.resume_from)
+            for m in modalities:
+                action_classifier.load_last_model(m, args.resume_from[m])
+
         val_loader = torch.utils.data.DataLoader(
             ActionSenseDataset(
                 modalities,
@@ -134,6 +139,7 @@ def main():
                 args.dataset,
                 args.test,
                 args.test.num_clips,
+                multimodal=args.multimodal,
                 transform=transformations["test"],
                 load_feat=args.load_feat,
             ),
@@ -204,7 +210,6 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
         """ Action recognition"""
         source_label = source_label.to(device)
 
-        
         for m in modalities:
             if m == "EMG":
                 batch = source_data[m].shape[0]
@@ -215,19 +220,19 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
                     -1,
                 )
                 source_data[m] = source_data[m].permute(1, 0, 2, 3)
-            elif m=="RGB":
-                source_data[m] = source_data[m].permute(1, 0 ,2)
+            elif m == "RGB":
+                source_data[m] = source_data[m].permute(1, 0, 2)
 
         data = {}
         for clip in range(args.train.num_clips):
-                # in case of multi-clip training one clip per time is processed
-                for m in modalities:
-                    data[m] = source_data[m][clip].to(device)
+            # in case of multi-clip training one clip per time is processed
+            for m in modalities:
+                data[m] = source_data[m][clip].to(device)
 
-                logits, _ = action_classifier.forward(data)
-                action_classifier.compute_loss(logits, source_label, loss_weight=1)
-                action_classifier.backward(retain_graph=False)
-                action_classifier.compute_accuracy(logits, source_label)
+            logits, _ = action_classifier.forward(data)
+            action_classifier.compute_loss(logits, source_label, loss_weight=1)
+            action_classifier.backward(retain_graph=False)
+            action_classifier.compute_accuracy(logits, source_label)
 
         # update weights and zero gradients if total_batch samples are passed
         if gradient_accumulation_step:
@@ -301,10 +306,9 @@ def validate(model, val_loader, device, it, num_classes):
                         args.test.num_frames_per_clip[m],
                         -1,
                     )
-                elif m=="RGB" and args.load_feat:
+                elif m == "RGB" and args.load_feat:
                     continue
 
-            
             clip = {}
             for i_c in range(args.test.num_clips):
                 for m in modalities:
@@ -330,7 +334,9 @@ def validate(model, val_loader, device, it, num_classes):
                 )
 
         class_accuracies = [
-            (x / y) * 100 for x, y in zip(model.accuracy.correct, model.accuracy.total) if y != 0
+            (x / y) * 100
+            for x, y in zip(model.accuracy.correct, model.accuracy.total)
+            if y != 0
         ]
         logger.info(
             "Final accuracy: top1 = %.2f%%\ttop5 = %.2f%%"
@@ -361,8 +367,7 @@ def validate(model, val_loader, device, it, num_classes):
     with open(
         os.path.join(
             args.log_dir,
-            f'val_precision_{str(args.modality)}-'
-            f'{str(args.modality)}.txt',
+            f"val_precision_{str(args.modality)}-" f"{str(args.modality)}.txt",
         ),
         "a+",
     ) as f:

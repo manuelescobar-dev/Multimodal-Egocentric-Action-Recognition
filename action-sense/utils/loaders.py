@@ -21,6 +21,7 @@ class ActionSenseDataset(data.Dataset, ABC):
         transform=None,
         load_feat=False,
         additional_info=False,
+        multimodal=False,
         **kwargs,
     ):
         """
@@ -51,7 +52,7 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.mode_config = mode_config
         self.num_clips = num_clips
 
-        if len(self.modalities) > 1 or self.modalities[0] == "RGB":
+        if len(self.modalities) > 1 or self.modalities[0] == "RGB" or multimodal:
             pickle_name = f"{self.mode}_MULTIMODAL"
         else:
             pickle_name = f"{self.mode}_{self.modalities[0]}"
@@ -63,26 +64,30 @@ class ActionSenseDataset(data.Dataset, ABC):
         self.data_path = os.path.join(
             self.dataset_conf["annotations_path"], pickle_name
         )
-        
+
         data = pd.read_pickle(self.data_path)
 
         """ record_list = [
             ActionRecord(info, self.dataset_conf) for info in data.iterrows()
         ] """
-        self.record_list=tuple(ActionRecord(info, self.dataset_conf) for info in data.iterrows())
+        self.record_list = tuple(
+            ActionRecord(info, self.dataset_conf) for info in data.iterrows()
+        )
 
-        if self.load_feat:
-            self.rgb_features = pd.DataFrame(
-                pd.read_pickle(
-                    os.path.join(
-                        "saved_features",
-                        pickle_name,
-                    )
-                )["features"]
-            )
+        self.features = {}
+        for m in self.modalities:
+            if self.load_feat[m]:
+                self.features[m] = pd.DataFrame(
+                    pd.read_pickle(
+                        os.path.join(
+                            "saved_features",
+                            pickle_name,
+                        )
+                    )["features"]
+                )
 
     def _getEMG(self, index):
-        record= self.record_list[index]
+        record = self.record_list[index]
         sides = ["left", "right"]
         emgs = []
         for s in sides:
@@ -100,7 +105,7 @@ class ActionSenseDataset(data.Dataset, ABC):
             emg = emg[segment_indices, :]
             emgs.append(emg)
         # Concatenate along the second axis to create a 100x16 array
-        result = np.concatenate((emgs[0],emgs[1]), axis=1, dtype=np.float32)
+        result = np.concatenate((emgs[0], emgs[1]), axis=1, dtype=np.float32)
         result = self.transform["EMG"](result)
         return result, record.label
 
@@ -110,9 +115,7 @@ class ActionSenseDataset(data.Dataset, ABC):
             if m == "EMG":
                 item[m], label = self._getEMG(index)
             else:
-                items, label = self._get_RGB(index)
-                for m in self.modalities:
-                    item[m] = items[m]
+                item[m], label = self._get_RGB(index)
         if self.additional_info:
             return item, label, index
         else:
@@ -123,7 +126,7 @@ class ActionSenseDataset(data.Dataset, ABC):
             submodality = modality + "_" + side
         else:
             submodality = modality
-        
+
         def random_offset(highest_idx):
             if highest_idx == 0:
                 offset = 0
@@ -175,12 +178,12 @@ class ActionSenseDataset(data.Dataset, ABC):
         frame_idx = np.asarray(frame_idx)
         return frame_idx
 
-    def _get_val_indices(self, modality, record: ActionRecord, side = None):
+    def _get_val_indices(self, modality, record: ActionRecord, side=None):
         if side is not None:
             submodality = modality + "_" + side
         else:
             submodality = modality
-        
+
         frame_idx = []
         # Dense sampling
         if self.mode_config.dense_sampling[modality]:
@@ -220,14 +223,13 @@ class ActionSenseDataset(data.Dataset, ABC):
             frame_idx = np.linspace(
                 0,
                 record.num_frames(submodality) - 1,
-                self.mode_config.num_frames_per_clip[modality]
-                * self.num_clips,
+                self.mode_config.num_frames_per_clip[modality] * self.num_clips,
                 dtype=int,
             )
         return np.asarray(frame_idx)
 
     def _get_RGB(self, index):
-
+        """Only for RGB modality, for now."""
         frames = {}
         label = None
         # record is a row of the pkl file containing one sample/action
@@ -236,30 +238,26 @@ class ActionSenseDataset(data.Dataset, ABC):
         record = self.record_list[index]
 
         if self.load_feat:
-            sample = {}
-            sample_row = self.rgb_features[
-                self.rgb_features["uid"] == int(record.uid)
+            sample_row = self.features["RGB"][
+                self.features["RGB"]["uid"] == int(record.uid)
             ]
             assert len(sample_row) == 1
-            for m in self.modalities:
-                sample[m] = sample_row["features_" + m].values[0]
-            
+            sample = sample_row["features_" + "RGB"].values[0]
+
             return sample, record.label
 
         segment_indices = {}
         # notice that all indexes are sampled in the[0, sample_{num_frames}] range, then the start_index of the sample
         # is added as an offset
-        for modality in self.modalities:
-            if self.mode == "train":
-                # here the training indexes are obtained with some randomization
-                segment_indices[modality] = self._get_train_indices(modality, record)
-            else:
-                # here the testing indexes are obtained with no randomization, i.e., centered
-                segment_indices[modality] = self._get_val_indices(modality, record)
+        if self.mode == "train":
+            # here the training indexes are obtained with some randomization
+            segment_indices = self._get_train_indices("RGB", record)
+        else:
+            # here the testing indexes are obtained with no randomization, i.e., centered
+            segment_indices = self._get_val_indices("RGB", record)
 
-        for m in self.modalities:
-            img, label = self.get(m, record, segment_indices[m])
-            frames[m] = img
+        img, label = self.get("RGB", record, segment_indices)
+        frames = img
 
         return frames, label
 
@@ -277,7 +275,6 @@ class ActionSenseDataset(data.Dataset, ABC):
     def _load_image(self, modality, record: ActionRecord, idx):
         data_path = self.dataset_conf[modality].data_path
         tmpl = self.dataset_conf[modality].tmpl
-        
 
         if modality == "RGB" or modality == "RGBDiff":
             # here the offset for the starting index of the sample is added

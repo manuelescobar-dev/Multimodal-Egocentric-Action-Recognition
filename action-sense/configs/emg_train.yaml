@@ -1,6 +1,12 @@
 action: train # train or test
 name: emg_train # name of the experiment needed for the logs
 modality: ["EMG"] # modality used
+load_feat:
+  RGB: True
+  EMG: False
+resume_from:
+  RGB: saved_models/rgb_train
+  EMG: saved_models/emg_train
 
 train:
   num_clips: 1

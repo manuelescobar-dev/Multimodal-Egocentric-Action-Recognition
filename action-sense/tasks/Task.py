@@ -50,7 +50,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         self.batch_size = batch_size
         self.total_batch = total_batch
         self.models_dir = models_dir
-        self.save=save
+        self.save = save
 
         # Number of training iterations
         self.current_iter = 0
@@ -218,7 +218,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
 
             self.__restore_checkpoint(model_path)
 
-    def load_last_model(self, path: str):
+    def load_last_model(self, m, path: str):
         """Load the last model from a specific path.
 
         Parameters
@@ -243,19 +243,19 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
                 sorted(Path(last_models_dir).iterdir(), key=os.path.getmtime)
             )
         ]
-        for m in self.modalities:
-            # Get the correct model (modality, name, idx)
-            model = list(
-                filter(
-                    lambda x: x.name.split(".")[1] != "DS_Store"
-                    and m == x.name.split(".")[0].split("_")[-2]
-                    and self.name == x.name.split(".")[0].split("_")[-3],
-                    saved_models,
-                )
-            )[0].name
 
-            model_path = os.path.join(last_models_dir, model)
-            self.__restore_checkpoint(m, model_path)
+        # Get the correct model (modality, name, idx)
+        model = list(
+            filter(
+                lambda x: x.name.split(".")[1] != "DS_Store"
+                and m == x.name.split(".")[0].split("_")[-2]
+                and self.name == x.name.split(".")[0].split("_")[-3],
+                saved_models,
+            )
+        )[0].name
+
+        model_path = os.path.join(last_models_dir, model)
+        self.__restore_checkpoint(m, model_path)
 
     def save_model(
         self, current_iter: int, last_iter_acc: float, prefix: Optional[str] = None

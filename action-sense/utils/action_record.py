@@ -6,7 +6,7 @@ class ActionRecord(VideoRecord):
         self._data = data[1]
         self._index = data[0]
         self.dataset_conf = dataset_conf
-        
+
     @property
     def uid(self):
         return self._index
@@ -44,12 +44,14 @@ class ActionRecord(VideoRecord):
         }
 
     def num_frames(self, submodality):
-        frames = {
-            "RGB": self.end_frame["RGB"] - self.start_frame["RGB"],
-            "EMG_left": len(self.myo_left_timestamps),
-            "EMG_right": len(self.myo_right_timestamps),
-        }
-        return frames[submodality]
+        if submodality == "RGB":
+            return self.end_frame["RGB"] - self.start_frame["RGB"]
+        elif submodality == "EMG_left":
+            return len(self.myo_left_timestamps)
+        elif submodality == "EMG_right":
+            return len(self.myo_right_timestamps)
+        else:
+            raise ValueError("Invalid submodality")
 
     @property
     def label(self):
