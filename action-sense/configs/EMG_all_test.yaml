@@ -1,12 +1,12 @@
 action: validate # train or test
-name: emg__304_train # name of the experiment needed for the logs
+name: emg_all_train # name of the experiment needed for the logs
 modality: ["EMG"] # modality used
 load_feat:
   RGB: True
   EMG: False
 multimodal: True
 resume_from:
-  EMG: best_models/EMG_s04_best_model.pth
+  EMG: best_models/EMG_all_best_model.pth
 
 train:
   num_iter: 5000
@@ -22,7 +22,7 @@ train:
 test:
   num_clips: 5
   dense_sampling: 
-    EMG: True
+    EMG: False
   num_frames_per_clip: 
     EMG: 100
   stride:

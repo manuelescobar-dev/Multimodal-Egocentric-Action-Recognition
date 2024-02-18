@@ -13,25 +13,25 @@ train:
   num_clips: 1
   dense_sampling: 
     EMG: True
-    RGB: True
+    RGB: False
   num_frames_per_clip: 
     EMG: 100
-    RGB: 16
+    RGB: 10
   stride:
     EMG: 1
-    RGB: 2
+    RGB: 1
 
 test:
   num_clips: 5
   dense_sampling: 
     EMG: True
-    RGB: True
+    RGB: False
   num_frames_per_clip: 
     EMG: 100
-    RGB: 16
+    RGB: 10
   stride:
     EMG: 1
-    RGB: 2
+    RGB: 1
 
 dataset:
   annotations_path: data/final_10x20 # path for the annotations data
