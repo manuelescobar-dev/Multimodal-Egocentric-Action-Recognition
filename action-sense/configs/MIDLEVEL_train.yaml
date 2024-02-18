@@ -10,11 +10,11 @@ train:
   num_clips: 1
   eval_freq: 50
   dense_sampling: 
-    EMG: True
-    RGB: True
+    EMG: False
+    RGB: False
   num_frames_per_clip: 
     EMG: 100
-    RGB: 16
+    RGB: 10
   stride:
     EMG: 2
     RGB: 2
@@ -22,11 +22,11 @@ train:
 test:
   num_clips: 5
   dense_sampling: 
-    EMG: True
-    RGB: True
+    EMG: False
+    RGB: False
   num_frames_per_clip: 
     EMG: 100
-    RGB: 16
+    RGB: 10
   stride:
     EMG: 2
     RGB: 2
@@ -41,7 +41,7 @@ dataset:
 # these are the action recognition models for each modality
 models:
   RGB:
-    model: MLP_Classifier
+    model: MLP_Classifier_2
     dropout: 0.5
     normalize: False
     resolution: 224
