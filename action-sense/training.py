@@ -4,12 +4,12 @@ from utils.logger import logger
 import os
 import torch
 
-SAMPLING = [True, False]
+SAMPLING = [False]
 COMPLETED = {""}
 MODALITY = "EMG"
 CONFIG = f"configs/{MODALITY}_train.yaml"
 NAME = "emg_train"
-AUGMENTATION = ["10x1", "5x1", "10x20", "5x20"]
+AUGMENTATION = ["10x1", "5x1"]
 
 
 def run_command(args):
@@ -39,10 +39,12 @@ if __name__ == "__main__":
     arguments_list = []
     for a in AUGMENTATION:
         for s in SAMPLING:
-            if s == True:
-                max_stride = 2
-            for i in range(1, max_stride + 1):
-                name = NAME + f"_{s}_{i}_{a}"
+            if s:
+                min_stride = 1
+            else:
+                min_stride = 2
+            for i in range(min_stride, 3):
+                name = NAME + f"_{s}_{str(i)}_{a}"
                 if name not in COMPLETED:
                     a = {
                         "name": name,

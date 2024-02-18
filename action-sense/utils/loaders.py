@@ -59,6 +59,7 @@ class ActionSenseDataset(data.Dataset, ABC):
             len(self.modalities) > 1
             or self.modalities[0] == "RGB"
             or self.modalities[0] == "MIDLEVEL"
+            or multimodal
         ):
             pickle_name = f"{self.mode}_MULTIMODAL"
         else:

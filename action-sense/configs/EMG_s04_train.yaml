@@ -1,49 +1,44 @@
-action: train # train or test
-name: rgb_train # name of the experiment needed for the logs
-modality: ["RGB"] # modality used
+action: validate # train or test
+name: emg__304_train # name of the experiment needed for the logs
+modality: ["EMG"] # modality used
 load_feat:
   RGB: True
   EMG: False
 multimodal: True
-#resume_from:
-  #RGB: saved_models/rgb_train
-  #EMG: saved_models/emg_train
+resume_from:
+  EMG: best_models/EMG_s04_best_model.pth
 
 train:
+  num_iter: 5000
+  lr_steps: 3000
   num_clips: 1
   dense_sampling: 
-    EMG: True
-    RGB: True
+    EMG: False
   num_frames_per_clip: 
     EMG: 100
-    RGB: 16
   stride:
     EMG: 1
-    RGB: 2
 
 test:
   num_clips: 5
   dense_sampling: 
     EMG: True
-    RGB: True
   num_frames_per_clip: 
     EMG: 100
-    RGB: 16
   stride:
     EMG: 1
-    RGB: 2
 
 dataset:
   annotations_path: data/final_10x20 # path for the annotations data
   workers: 4 # number of workers for the dataloader
   resolution: 224 # input resolution to the model
   RGB:
-    data_path: data/frames
+    data_path: Volumes/Mac/AML/frames
 
 # these are the action recognition models for each modality
 models:
   RGB:
-    model: MLP_Classifier_2
+    model: I3D
     dropout: 0.5
     normalize: False
     resolution: 224
@@ -52,6 +47,7 @@ models:
     lr: 0.01
     sgd_momentum: 0.9
     weight_decay: 1e-7
+    weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'
   EMG:
     model: ActionNet
     hidden_size: 50
@@ -62,7 +58,3 @@ models:
     lr: 0.1
     sgd_momentum: 0.9
     weight_decay: 1e-7
-    fs: 160
-    cutoff: 5
-    num_channels: 16
-    normalization: False
