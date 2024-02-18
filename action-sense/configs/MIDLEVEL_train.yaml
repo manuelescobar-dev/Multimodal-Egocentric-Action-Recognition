@@ -68,7 +68,7 @@ models:
     model: MidlevelActionNet
     emg_feature_size: 1024
     rgb_feature_size: 1024
-    dropout: 0.25
+    dropout: 0.5
     lr_steps: 3000
     lr: 0.1
     sgd_momentum: 0.9

@@ -4,3 +4,6 @@ from models.ActionNet import ActionNet
 from models.MLP_classifier import MLP_Classifier
 from models.MidlevelActionNet import MidlevelActionNet
 from models.MLP_classifier_2 import MLP_Classifier_2
+from models.MidlevelActionNet_P import MidlevelActionNet_P
+from models.MidlevelActionNet_R import MidlevelActionNet_R
+from models.MidlevelActionNet_M import MidlevelActionNet_M

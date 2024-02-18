@@ -5,9 +5,9 @@ load_feat:
   RGB: True
   EMG: False
 multimodal: True
-#resume_from:
-  #RGB: saved_models/rgb_train
-  #EMG: saved_models/emg_train
+resume_from:
+  RGB: saved_models/rgb_train
+  EMG: saved_models/emg_train
 
 train:
   num_clips: 1
