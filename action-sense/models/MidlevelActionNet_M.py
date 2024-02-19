@@ -15,12 +15,13 @@ class MidlevelActionNet_M(nn.Module):
 
         self.dropout = nn.Dropout(self.model_config.dropout)  # Dropout layer
 
-        # Concatenate the EMG and RGB features
+        # For the RGB modality
         self.fc1 = nn.Linear(
             1024,
             50,
         )
 
+        # For the concatenated features
         self.fc2 = nn.Linear(
             100,
             self.num_classes,
@@ -53,7 +54,7 @@ class MidlevelActionNet_M(nn.Module):
 
         assert x_emg.shape == (x_emg.size(0), 100, 16)
         assert x_rgb.shape == (x_rgb.size(0), 1024)
-        # x = self.avgpool(x)  # Average pooling
+
         (h0, c0) = (
             torch.zeros(1, x_emg.size(0), 50).to(
                 x_emg.device
@@ -62,13 +63,13 @@ class MidlevelActionNet_M(nn.Module):
                 x_emg.device
             ),
         )
-        x_emg, _ = self.lstm(x_emg, (h0, c0))
+        
+        x_emg, _ = self.lstm(x_emg, (h0, c0)) # x_emg: (batch_size, seq_length, 50)
         x_emg = x_emg[:, -1, :]  # x_emg: (batch_size, 50)
-        # Concatenate the EMG and RGB features
         x_rgb= self.fc1(x_rgb) # x_rgb: (batch_size, 50)
         x = torch.cat((x_emg, x_rgb), dim=1)  # (batch_size, 50 + 50)
-        x = self.dropout(x)
-        x = self.fc2(x)
+        x = self.dropout(x) # Dropout
+        x = self.fc2(x) # Fully connected layer
         return x, {}
         
 

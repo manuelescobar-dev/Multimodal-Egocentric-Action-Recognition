@@ -16,12 +16,13 @@ class MidlevelActionNet_R(nn.Module):
         self.dropout1 = nn.Dropout(self.model_config.dropout)  # Dropout layer
         self.dropout2 = nn.Dropout(self.model_config.dropout)  # Dropout layer
 
-        # Concatenate the EMG and RGB features
+        # For the concatenated features
         self.fc1 = nn.Linear(
             self.model_config.emg_feature_size + self.model_config.rgb_feature_size,
             self.model_config.hidden_size,
         )
-
+        
+        # Linear layer for classification
         self.fc2 = nn.Linear(
             self.model_config.hidden_size,
             self.num_classes,
@@ -71,9 +72,9 @@ class MidlevelActionNet_R(nn.Module):
                 x_emg.device
             ),
         )
-        x_emg, _ = self.lstm(x_emg, (h0, c0))
+        
+        x_emg, _ = self.lstm(x_emg, (h0, c0)) # x_emg: (batch_size, seq_length, hidden_size)
         x_emg = x_emg[:, -1, :]  # x_emg: (batch_size, 1024)
-        # Concatenate the EMG and RGB features
         x = torch.cat((x_emg, x_rgb), dim=1)  # (batch_size, 1024 + 1024)
         return self.classifier(x), {}
 

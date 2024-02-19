@@ -15,12 +15,13 @@ class MidlevelActionNet(nn.Module):
 
         self.dropout = nn.Dropout(self.model_config.dropout)  # Dropout layer
 
-        # Concatenate the EMG and RGB features
+        # For the concatenated features
         self.fc1 = nn.Linear(
             self.model_config.emg_feature_size + self.model_config.rgb_feature_size,
             self.model_config.hidden_size,
         )
 
+        # Linear layer for classification
         self.fc2 = nn.Linear(
             self.model_config.hidden_size,
             self.num_classes,

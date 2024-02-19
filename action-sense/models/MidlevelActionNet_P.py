@@ -18,6 +18,7 @@ class MidlevelActionNet_P(nn.Module):
         # Adaptive average pooling for the RGB modality 1024 -> 50
         self.avgpool = nn.AdaptiveAvgPool1d(50)
 
+        # For the concatenated features
         self.fc1 = nn.Linear(
             100,
             self.num_classes,
@@ -59,13 +60,13 @@ class MidlevelActionNet_P(nn.Module):
                 x_emg.device
             ),
         )
-        x_emg, _ = self.lstm(x_emg, (h0, c0))
+        
+        x_emg, _ = self.lstm(x_emg, (h0, c0)) # x_emg: (batch_size, seq_length, hidden_size)
         x_emg = x_emg[:, -1, :]  # x_emg: (batch_size, 50)
-        # Concatenate the EMG and RGB features
         x_rgb= self.avgpool(x_rgb) # x_rgb: (batch_size, 50)
         x = torch.cat((x_emg, x_rgb), dim=1)  # (batch_size, 50 + 50)
-        x = self.dropout(x)
-        x = self.fc1(x)
+        x = self.dropout(x) # Dropout
+        x = self.fc1(x) # Fully connected layer
         return x, {}
         
 

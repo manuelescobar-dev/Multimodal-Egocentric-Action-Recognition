@@ -20,7 +20,6 @@ class ActionNet(nn.Module):
         self.model_config = model_config
         self.num_classes = num_classes
 
-        # self.lstm = nn.LSTM(16, 5, batch_first=True)
         self.lstm = nn.LSTM(
             16, self.model_config.hidden_size, batch_first=True
         )  # LSTM layer
@@ -48,11 +47,10 @@ class ActionNet(nn.Module):
             torch.zeros(1, x.size(0), self.model_config.hidden_size).to(x.device),
             torch.zeros(1, x.size(0), self.model_config.hidden_size).to(x.device),
         )
-        x, _ = self.lstm(x, (h0, c0))
-        # x: (batch_size, seq_length, hidden_size)
+        x, _ = self.lstm(x, (h0, c0)) # x: (batch_size, seq_length, hidden_size)
         x = x[:, -1, :]  # Get the last output for the sequence
-        x = self.dropout(x)
-        x = self.fc(x)
+        x = self.dropout(x) # Dropout
+        x = self.fc(x) # Fully connected layer
         return x, {}
 
     def get_augmentation(self, modality):
