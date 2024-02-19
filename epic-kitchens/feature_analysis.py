@@ -10,10 +10,10 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 # import seaborn as sns
 
 PATH = "saved_features"
-FRAMES = 10
+FRAMES = 25
 NAME = "feat"
 SPLIT = ["train", "test"]
-DENSE = False
+DENSE = True
 SHIFT = "D1"
 
 
@@ -168,13 +168,13 @@ if __name__ == "__main__":
     plt.show()
 
     # Dendrogram
-    plot_dendrogram(samples)
+    # plot_dendrogram(samples)
 
     # Cluster Heatmap
     # plot_cluster_heatmap(samples, hierarchical_predictions)
 
     # Tree Diagram
-    plot_tree_diagram(samples, hierarchical_predictions)
+    # plot_tree_diagram(samples, hierarchical_predictions)
 
 
 
