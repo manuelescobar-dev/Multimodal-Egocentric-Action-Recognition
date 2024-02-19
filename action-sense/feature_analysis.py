@@ -10,12 +10,9 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 import seaborn as sns
 
 PATH = "saved_features"
-#FRAMES = 10
 NAME = "saved_feat_I3D_RGB"
 SPLIT = ["train", "test"]
-# DENSE = True
-#SHIFT = "D1"
-Model="MULTIMODAL" # "EMG" or "MULTIMODAL"
+Model="MULTIMODAL"
 
 def load_features():
     filename = os.path.join(PATH, f"{NAME}_{SPLIT[0]}.pkl")
@@ -45,27 +42,6 @@ def load_labels():
     labels2 = ini_dictionary2["label"].values
     return np.concatenate((labels1, labels2))
 
-
-# def load_features():
-#     filename = os.path.join(PATH, f"{NAME}_train.pkl")
-#     with open(filename, "rb") as f:
-#         features_train = pd.read_pickle(f)
-    
-#     filename = os.path.join(PATH, f"{NAME}_test.pkl")
-#     with open(filename, "rb") as f:
-#         features_test = pd.read_pickle(f)
-#     return features_train, features_test
-
-
-# def load_labels():
-#     filename = os.path.join("data/final",f"train_{Model}.pkl")
-#     with open(filename, "rb") as f:
-#         labels_train = pd.read_pickle(f)
-#     filename = os.path.join("data/final",f"test_{Model}.pkl")
-#     with open(filename, "rb") as f:
-#         labels_test = pd.read_pickle(f)
-#     labels = labels_test["label"]+labels_train["label"]
-#     return labels.values
 
 
 def transform_features():
@@ -187,17 +163,17 @@ if __name__ == "__main__":
     accuracy(hierarchical_predictions, load_labels())
     plt.show()
 
-    # # Dendrogram
-    # plot_dendrogram(samples)
-    # plt.show()
+    # Dendrogram
+    plot_dendrogram(samples)
+    plt.show()
 
-    # # Cluster Heatmap
-    # plot_cluster_heatmap(samples, hierarchical_predictions)
-    # plt.show()
+    # Cluster Heatmap
+    plot_cluster_heatmap(samples, hierarchical_predictions)
+    plt.show()
 
-    # # Tree Diagram
-    # plot_tree_diagram(samples, hierarchical_predictions)
-    # plt.show()
+    # Tree Diagram
+    plot_tree_diagram(samples, hierarchical_predictions)
+    plt.show()
 
    
 
