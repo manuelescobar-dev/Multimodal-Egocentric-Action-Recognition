@@ -10,7 +10,6 @@ class LSTM_Classifier(nn.Module):
         self.num_classes = num_classes
 
         self.lstm = nn.LSTM(1024, self.model_config.hidden_size, batch_first=True)
-
         # Readout layer
         # self.avgpool = nn.AvgPool2d(7)  # Average pooling layer 7x7
         self.dropout = nn.Dropout(0.7)  # Dropout layer
