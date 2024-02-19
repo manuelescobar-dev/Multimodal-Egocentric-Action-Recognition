@@ -12,24 +12,60 @@ import seaborn as sns
 PATH = "saved_features"
 #FRAMES = 10
 NAME = "saved_feat_I3D_RGB"
-SPLIT = "test"
+SPLIT = ["train", "test"]
 # DENSE = True
 #SHIFT = "D1"
 Model="MULTIMODAL" # "EMG" or "MULTIMODAL"
 
-
 def load_features():
-    filename = os.path.join(PATH, f"{NAME}_{SPLIT}.pkl")
+    filename = os.path.join(PATH, f"{NAME}_{SPLIT[0]}.pkl")
     with open(filename, "rb") as f:
-        features = pd.read_pickle(f)
-    return features
+        ini_dictionary1 = pickle.load(f)
+    filename = os.path.join(PATH, f"{NAME}_{SPLIT[1]}.pkl")
+    with open(filename, "rb") as f:
+        ini_dictionary2 = pickle.load(f)
+    final_dictionary = {}
+    for key in ini_dictionary1:
+        final_dictionary[key] = ini_dictionary1[key] + ini_dictionary2.get(key, 0)
+    for key in ini_dictionary2:
+        if key not in final_dictionary:
+            final_dictionary[key] = ini_dictionary2[key]
+
+    return final_dictionary
 
 
 def load_labels():
-    filename = os.path.join("data/final",f"{SPLIT}_{Model}.pkl")
+    filename = os.path.join("data/final_10x20", f"{SPLIT[0]}_{Model}.pkl")
     with open(filename, "rb") as f:
-        labels = pd.read_pickle(f)
-    return labels["label"].values
+        ini_dictionary1 = pickle.load(f)
+    filename = os.path.join("data/final_10x20", f"{SPLIT[1]}_{Model}.pkl")
+    with open(filename, "rb") as f:
+        ini_dictionary2 = pickle.load(f)
+    labels1 = ini_dictionary1["label"].values
+    labels2 = ini_dictionary2["label"].values
+    return np.concatenate((labels1, labels2))
+
+
+# def load_features():
+#     filename = os.path.join(PATH, f"{NAME}_train.pkl")
+#     with open(filename, "rb") as f:
+#         features_train = pd.read_pickle(f)
+    
+#     filename = os.path.join(PATH, f"{NAME}_test.pkl")
+#     with open(filename, "rb") as f:
+#         features_test = pd.read_pickle(f)
+#     return features_train, features_test
+
+
+# def load_labels():
+#     filename = os.path.join("data/final",f"train_{Model}.pkl")
+#     with open(filename, "rb") as f:
+#         labels_train = pd.read_pickle(f)
+#     filename = os.path.join("data/final",f"test_{Model}.pkl")
+#     with open(filename, "rb") as f:
+#         labels_test = pd.read_pickle(f)
+#     labels = labels_test["label"]+labels_train["label"]
+#     return labels.values
 
 
 def transform_features():
@@ -37,6 +73,7 @@ def transform_features():
     df = pd.DataFrame(features["features"])
     df = video_level_features(df)
     return df
+
 
 
 def video_level_features(df):
@@ -48,7 +85,7 @@ def video_level_features(df):
 
 
 def kmeans_clustering(samples):
-    kmeans = KMeans(n_clusters=8)
+    kmeans = KMeans(n_clusters=19)
     kmeans.fit(samples)
     cluster_centers = kmeans.cluster_centers_
     labels = kmeans.labels_
@@ -56,7 +93,7 @@ def kmeans_clustering(samples):
 
 
 def hierarchical_clustering(samples):
-    agg_clustering = AgglomerativeClustering(n_clusters=8, linkage='ward')
+    agg_clustering = AgglomerativeClustering(n_clusters=19, linkage='ward')
     labels = agg_clustering.fit_predict(samples)
     return labels
 
@@ -138,29 +175,33 @@ if __name__ == "__main__":
     df = transform_features()
     samples = np.vstack(df["mean_feats"].to_numpy())
 
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
-
     # K-means clustering
     kmeans_centers, kmeans_predictions = kmeans_clustering(samples)
-    visualize_clusters(axes[0], samples, kmeans_centers, kmeans_predictions, "K-means Clustering")
+    visualize_clusters(plt.gca(), samples, kmeans_centers, kmeans_predictions, "K-means Clustering")
     accuracy(kmeans_predictions, load_labels())
+    plt.show()
 
     # Hierarchical clustering
     hierarchical_predictions = hierarchical_clustering(samples)
-    visualize_clusters(axes[1], samples, None, hierarchical_predictions, "Hierarchical Clustering")
+    visualize_clusters(plt.gca(), samples, None, hierarchical_predictions, "Hierarchical Clustering")
     accuracy(hierarchical_predictions, load_labels())
-
-    plt.tight_layout()
     plt.show()
 
-    # Dendrogram
-    plot_dendrogram(samples)
+    # # Dendrogram
+    # plot_dendrogram(samples)
+    # plt.show()
 
-    # Cluster Heatmap
-    plot_cluster_heatmap(samples, hierarchical_predictions)
+    # # Cluster Heatmap
+    # plot_cluster_heatmap(samples, hierarchical_predictions)
+    # plt.show()
 
-    # Tree Diagram
-    plot_tree_diagram(samples, hierarchical_predictions)
+    # # Tree Diagram
+    # plot_tree_diagram(samples, hierarchical_predictions)
+    # plt.show()
+
+   
+
+    
 
 
 
