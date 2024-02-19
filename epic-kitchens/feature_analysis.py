@@ -7,28 +7,43 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.decomposition import PCA
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 from scipy.cluster.hierarchy import dendrogram, linkage
-import seaborn as sns
+# import seaborn as sns
 
 PATH = "saved_features"
 FRAMES = 10
 NAME = "feat"
-SPLIT = "train"
-DENSE = True
+SPLIT = ["train", "test"]
+DENSE = False
 SHIFT = "D1"
 
 
 def load_features():
-    filename = os.path.join(PATH, f"{NAME}_{FRAMES}_{DENSE}_{SHIFT}_{SPLIT}.pkl")
+    filename = os.path.join(PATH, f"{NAME}_{FRAMES}_{DENSE}_{SHIFT}_{SPLIT[0]}.pkl")
     with open(filename, "rb") as f:
-        features = pickle.load(f)
-    return features
+        ini_dictionary1 = pickle.load(f)
+    filename = os.path.join(PATH, f"{NAME}_{FRAMES}_{DENSE}_{SHIFT}_{SPLIT[1]}.pkl")
+    with open(filename, "rb") as f:
+        ini_dictionary2 = pickle.load(f)
+    final_dictionary = {}
+    for key in ini_dictionary1:
+        final_dictionary[key] = ini_dictionary1[key] + ini_dictionary2.get(key, 0)
+    for key in ini_dictionary2:
+        if key not in final_dictionary:
+            final_dictionary[key] = ini_dictionary2[key]
+
+    return final_dictionary
 
 
 def load_labels():
-    filename = os.path.join("train_val", f"{SHIFT}_{SPLIT}.pkl")
+    filename = os.path.join("train_val", f"{SHIFT}_{SPLIT[0]}.pkl")
     with open(filename, "rb") as f:
-        labels = pickle.load(f)
-    return labels["verb_class"].values
+        ini_dictionary1 = pickle.load(f)
+    filename = os.path.join("train_val", f"{SHIFT}_{SPLIT[1]}.pkl")
+    with open(filename, "rb") as f:
+        ini_dictionary2 = pickle.load(f)
+    labels1 = ini_dictionary1["verb_class"].values
+    labels2 = ini_dictionary2["verb_class"].values
+    return np.concatenate((labels1, labels2))
 
 
 def transform_features():
@@ -110,14 +125,14 @@ def plot_dendrogram(samples):
     plt.show()
 
 
-def plot_cluster_heatmap(samples, labels):
-    df = pd.DataFrame(samples)
-    df['cluster'] = labels
-    df = df.sort_values(by='cluster')
-    df = df.drop(columns='cluster')
-    sns.clustermap(df, cmap='viridis', figsize=(10, 8))
-    plt.title('Cluster Heatmap')
-    plt.show()
+# def plot_cluster_heatmap(samples, labels):
+#     df = pd.DataFrame(samples)
+#     df['cluster'] = labels
+#     df = df.sort_values(by='cluster')
+#     df = df.drop(columns='cluster')
+#     sns.clustermap(df, cmap='viridis', figsize=(10, 8))
+#     plt.title('Cluster Heatmap')
+#     plt.show()
 
 
 def plot_tree_diagram(samples, labels):
@@ -156,7 +171,7 @@ if __name__ == "__main__":
     plot_dendrogram(samples)
 
     # Cluster Heatmap
-    plot_cluster_heatmap(samples, hierarchical_predictions)
+    # plot_cluster_heatmap(samples, hierarchical_predictions)
 
     # Tree Diagram
     plot_tree_diagram(samples, hierarchical_predictions)
