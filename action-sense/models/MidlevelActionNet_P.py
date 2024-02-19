@@ -18,7 +18,7 @@ class MidlevelActionNet_P(nn.Module):
         # Adaptive average pooling for the RGB modality 1024 -> 50
         self.avgpool = nn.AdaptiveAvgPool1d(50)
 
-        self.fc2 = nn.Linear(
+        self.fc1 = nn.Linear(
             100,
             self.num_classes,
         )
@@ -37,9 +37,9 @@ class MidlevelActionNet_P(nn.Module):
             if "weight" in name:
                 init.xavier_uniform_(param)
 
-        for name, param in self.fc2.named_parameters():
-            if "weight" in name:
-                init.xavier_uniform_(param)
+        # for name, param in self.fc2.named_parameters():
+        #     if "weight" in name:
+        #         init.xavier_uniform_(param)
 
     def forward(self, x: dict):
         """
@@ -65,7 +65,7 @@ class MidlevelActionNet_P(nn.Module):
         x_rgb= self.avgpool(x_rgb) # x_rgb: (batch_size, 50)
         x = torch.cat((x_emg, x_rgb), dim=1)  # (batch_size, 50 + 50)
         x = self.dropout(x)
-        x = self.fc2(x)
+        x = self.fc1(x)
         return x, {}
         
 
